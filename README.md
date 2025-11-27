@@ -2,7 +2,7 @@
 
 Archivos a subir a la asignacion:
 - Grupo4_PrimerEntregable.zip
-- Grupo4_Informe.pdf
+- Grupo4_Informe.pdf (aun falta editarlo, por eso no lo he subido al repositorio)
 - Script_Definitivo.sql
 - DocumentoPruebasBDD.pdf
 
