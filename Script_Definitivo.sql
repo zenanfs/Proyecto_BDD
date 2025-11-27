@@ -3422,3 +3422,2117 @@ SET DEFINE OFF;
 	  REFERENCES "SISTEMA_UNIVERSITARIO"."PROCESO_TITULACION" ("ID_PROCESO") ON DELETE CASCADE ENABLE;
   ALTER TABLE "SISTEMA_UNIVERSITARIO"."TRIBUNAL_GRADO" ADD CONSTRAINT "FK_TRIBUNAL_TRIBUNAL__DOCENTE" FOREIGN KEY ("ID_DOCENTE")
 	  REFERENCES "SISTEMA_UNIVERSITARIO"."DOCENTE" ("ID_DOCENTE") ON DELETE CASCADE ENABLE;
+
+/*
+TERCERA FASE: Data Seeder. Se definen los dominios como estados de estudiantes, en el cual se crean
+las inserciones de datos base: 8 facultades, 35 carreras, 450 docentes y 200 asignaturas.
+*/
+
+SET DEFINE OFF;
+SET SERVEROUTPUT ON;
+
+--- 1. CARGANDO DOMINIOS (CATALOGOS)
+
+-- TIPO_BECA: Valores reales de negocio
+INSERT INTO TIPO_BECA (ID_BECA, NOMBRE_BECA) VALUES (SEQ_TIPO_BECA.NEXTVAL, 'EXCELENCIA ACADEMICA');
+INSERT INTO TIPO_BECA (ID_BECA, NOMBRE_BECA) VALUES (SEQ_TIPO_BECA.NEXTVAL, 'DEPORTIVA DE ALTO RENDIMIENTO');
+INSERT INTO TIPO_BECA (ID_BECA, NOMBRE_BECA) VALUES (SEQ_TIPO_BECA.NEXTVAL, 'AYUDA SOCIOECONOMICA');
+INSERT INTO TIPO_BECA (ID_BECA, NOMBRE_BECA) VALUES (SEQ_TIPO_BECA.NEXTVAL, 'INVESTIGACION CIENTIFICA');
+INSERT INTO TIPO_BECA (ID_BECA, NOMBRE_BECA) VALUES (SEQ_TIPO_BECA.NEXTVAL, 'PUEBLOS Y NACIONALIDADES');
+INSERT INTO TIPO_BECA (ID_BECA, NOMBRE_BECA) VALUES (SEQ_TIPO_BECA.NEXTVAL, 'DISCAPACIDAD');
+
+COMMIT;
+
+--- 2. INSERTANDO 8 FACULTADES (SIN DECANO AUN)
+
+-- Insertamos con ID_DOCENTE en NULL para evitar error de FK (El huevo y la gallina)
+-- Usamos nombres formales de facultades.
+BEGIN
+    INSERT INTO FACULTAD VALUES (SEQ_FACULTAD.NEXTVAL, NULL, 'FACULTAD DE INGENIERIA Y CIENCIAS APLICADAS', 1);
+    INSERT INTO FACULTAD VALUES (SEQ_FACULTAD.NEXTVAL, NULL, 'FACULTAD DE CIENCIAS MEDICAS', 2);
+    INSERT INTO FACULTAD VALUES (SEQ_FACULTAD.NEXTVAL, NULL, 'FACULTAD DE CIENCIAS ADMINISTRATIVAS', 3);
+    INSERT INTO FACULTAD VALUES (SEQ_FACULTAD.NEXTVAL, NULL, 'FACULTAD DE JURISPRUDENCIA Y CIENCIAS POLITICAS', 4);
+    INSERT INTO FACULTAD VALUES (SEQ_FACULTAD.NEXTVAL, NULL, 'FACULTAD DE ARQUITECTURA Y URBANISMO', 5);
+    INSERT INTO FACULTAD VALUES (SEQ_FACULTAD.NEXTVAL, NULL, 'FACULTAD DE FILOSOFIA Y LETRAS', 6);
+    INSERT INTO FACULTAD VALUES (SEQ_FACULTAD.NEXTVAL, NULL, 'FACULTAD DE CIENCIAS ECONOMICAS', 7);
+    INSERT INTO FACULTAD VALUES (SEQ_FACULTAD.NEXTVAL, NULL, 'FACULTAD DE COMUNICACION SOCIAL', 8);
+    COMMIT;
+END;
+/
+
+--- 3. INSERTANDO 35 CARRERAS (SIN COORDINADOR AUN)
+
+DECLARE
+    -- Definimos las carreras agrupadas para asignarlas a las facultades creadas arriba (IDs 1 al 8)
+    TYPE t_lista IS VARRAY(35) OF VARCHAR2(100);
+    v_carreras t_lista := t_lista(
+        -- Facultad 1: Ingenieria (7 carreras)
+        'Ingeniería en Sistemas de Información', 'Ingeniería Civil', 'Ingeniería Industrial', 'Ingeniería Mecatrónica', 'Ingeniería Electrónica y Telecomunicaciones', 'Ingeniería Ambiental', 'Ingeniería en Software',
+        -- Facultad 2: Medicina (5 carreras)
+        'Medicina General', 'Enfermería', 'Odontología', 'Terapia Física', 'Laboratorio Clínico',
+        -- Facultad 3: Administración (5 carreras)
+        'Administración de Empresas', 'Contabilidad y Auditoría', 'Marketing', 'Gestión del Talento Humano', 'Negocios Internacionales',
+        -- Facultad 4: Jurisprudencia (3 carreras)
+        'Derecho', 'Ciencias Políticas', 'Sociología',
+        -- Facultad 5: Arquitectura (3 carreras)
+        'Arquitectura', 'Diseño Gráfico', 'Diseño de Interiores',
+        -- Facultad 6: Filosofía (4 carreras)
+        'Psicología Clínica', 'Psicología Educativa', 'Pedagogía de los Idiomas', 'Educación Inicial',
+        -- Facultad 7: Economía (4 carreras)
+        'Economía', 'Finanzas', 'Estadística', 'Ingeniería Comercial',
+        -- Facultad 8: Comunicación (4 carreras)
+        'Periodismo', 'Comunicación Organizacional', 'Publicidad', 'Producción Audiovisual'
+    );
+    
+    v_facultad_id NUMBER;
+BEGIN
+    FOR i IN 1..35 LOOP
+        -- Lógica simple para asignar facultades basándonos en el orden de la lista
+        IF i <= 7 THEN v_facultad_id := 1;
+        ELSIF i <= 12 THEN v_facultad_id := 2;
+        ELSIF i <= 17 THEN v_facultad_id := 3;
+        ELSIF i <= 20 THEN v_facultad_id := 4;
+        ELSIF i <= 23 THEN v_facultad_id := 5;
+        ELSIF i <= 27 THEN v_facultad_id := 6;
+        ELSIF i <= 31 THEN v_facultad_id := 7;
+        ELSE v_facultad_id := 8;
+        END IF;
+
+        INSERT INTO CARRERA (ID_CARRERA, ID_FACULTAD, ID_DOCENTE, NOMBRE_CARRERA, NIVEL_CARRERA, MODALIDAD_CARRERA, DURACION_SEMESTRES)
+        VALUES (
+            SEQ_CARRERA.NEXTVAL, 
+            v_facultad_id, 
+            NULL, -- Se actualiza luego
+            v_carreras(i), 
+            'GRADO', 
+            CASE WHEN MOD(i,5)=0 THEN 'HIBRIDA' ELSE 'PRESENCIAL' END, -- Variamos modalidad
+            CASE WHEN v_facultad_id = 2 THEN 10 ELSE 9 END -- Medicina dura más
+        );
+    END LOOP;
+    COMMIT;
+END;
+/
+
+--- 4. GENERANDO 450 DOCENTES
+
+DECLARE
+    -- Arrays para combinaciones de nombres
+    v_nombres  SYS.ODCIVARCHAR2LIST := SYS.ODCIVARCHAR2LIST('Juan', 'Maria', 'Carlos', 'Ana', 'Luis', 'Sofia', 'Jose', 'Paula', 'Jorge', 'Elena', 'Pedro', 'Lucia', 'Miguel', 'Carmen', 'David', 'Laura', 'Fernando', 'Andrea', 'Ricardo', 'Isabel');
+    v_apellidos SYS.ODCIVARCHAR2LIST := SYS.ODCIVARCHAR2LIST('Perez', 'Gomez', 'Rodriguez', 'Fernandez', 'Lopez', 'Diaz', 'Martinez', 'Garcia', 'Sanchez', 'Romero', 'Torres', 'Ramirez', 'Vargas', 'Ruiz', 'Castro', 'Herrera', 'Morales', 'Ortega', 'Mendoza', 'Flores');
+    
+    v_nombre_completo VARCHAR2(100);
+    v_apellido_completo VARCHAR2(100);
+    v_email VARCHAR2(100);
+    v_cedula_base NUMBER := 170000000;
+    v_facultad_random NUMBER;
+    v_carrera_random NUMBER;
+    v_tipo_profe VARCHAR2(50);
+BEGIN
+    FOR i IN 1..450 LOOP
+        -- Generar nombres aleatorios combinando dos elementos de las listas
+        v_nombre_completo := v_nombres(TRUNC(DBMS_RANDOM.VALUE(1, 21))); 
+        v_apellido_completo := v_apellidos(TRUNC(DBMS_RANDOM.VALUE(1, 21))) || ' ' || v_apellidos(TRUNC(DBMS_RANDOM.VALUE(1, 21)));
+        
+        -- Generar email realista: juan.perez45@universidad.edu.ec
+        v_email := LOWER(SUBSTR(v_nombre_completo, 1, INSTR(v_nombre_completo, ' ')-1)) || '.' || 
+                   LOWER(SUBSTR(v_apellido_completo, 1, INSTR(v_apellido_completo, ' ')-1)) || i || '@universidad.edu.ec';
+        
+        -- Limpiar espacios en email si es nombre simple
+        IF v_email LIKE '.%' THEN v_email := LOWER(v_nombre_completo) || i || '@universidad.edu.ec'; END IF;
+
+        -- Asignar facultad aleatoria (1-8)
+        v_facultad_random := TRUNC(DBMS_RANDOM.VALUE(1, 9));
+        
+        -- Intentar asignar una carrera que pertenezca a esa facultad (simplificado: carrera random 1-35)
+        -- En un entorno real haríamos un query, aquí asignamos carrera random para data seeder
+        v_carrera_random := TRUNC(DBMS_RANDOM.VALUE(1, 36));
+
+        -- Determinar tipo
+        IF MOD(i, 10) < 6 THEN v_tipo_profe := 'TITULAR TIEMPO COMPLETO';
+        ELSIF MOD(i, 10) < 8 THEN v_tipo_profe := 'MEDIO TIEMPO';
+        ELSE v_tipo_profe := 'OCASIONAL';
+        END IF;
+
+        INSERT INTO DOCENTE (
+            ID_DOCENTE, ID_FACULTAD, FAC_ID_FACULTAD, ID_CARRERA, 
+            NUMERO_UNICO, CEDULA, NOMBRES_DOCENTE, APELLIDOS_DOCENTE, 
+            EMAIL_INSTITUCIONAL, TIPO_PROFESOR, CATEGORIA_DOCENTE, FECHA_INGRESO
+        ) VALUES (
+            SEQ_DOCENTE.NEXTVAL,
+            v_facultad_random,
+            v_facultad_random,
+            v_carrera_random,
+            'D-' || LPAD(i, 5, '0'),
+            TO_CHAR(v_cedula_base + i), -- Cédula única
+            v_nombre_completo,
+            v_apellido_completo,
+            v_email,
+            v_tipo_profe,
+            CASE WHEN i < 50 THEN 'PRINCIPAL 1' ELSE 'AGREGADO' END,
+            ADD_MONTHS(SYSDATE, -TRUNC(DBMS_RANDOM.VALUE(12, 240))) -- Fecha ingreso hace 1 a 20 años
+        );
+    END LOOP;
+    COMMIT;
+END;
+/
+
+--- 5. ACTUALIZACION DE AUTORIDADES (DECANOS Y COORDINADORES)
+
+-- Ahora que existen docentes, asignamos Decanos a Facultades
+BEGIN
+    FOR r IN (SELECT ID_FACULTAD FROM FACULTAD) LOOP
+        UPDATE FACULTAD 
+        SET ID_DOCENTE = (
+            SELECT ID_DOCENTE FROM (
+                SELECT ID_DOCENTE FROM DOCENTE WHERE ID_FACULTAD = r.ID_FACULTAD ORDER BY DBMS_RANDOM.VALUE
+            ) WHERE ROWNUM = 1
+        )
+        WHERE ID_FACULTAD = r.ID_FACULTAD;
+    END LOOP;
+    COMMIT;
+END;
+/
+
+-- Asignamos Coordinadores a Carreras
+BEGIN
+    FOR r IN (SELECT ID_CARRERA FROM CARRERA) LOOP
+        UPDATE CARRERA 
+        SET ID_DOCENTE = (
+            SELECT ID_DOCENTE FROM (
+                -- Buscamos cualquier docente (simplificación para seeder)
+                SELECT ID_DOCENTE FROM DOCENTE ORDER BY DBMS_RANDOM.VALUE
+            ) WHERE ROWNUM = 1
+        )
+        WHERE ID_CARRERA = r.ID_CARRERA;
+    END LOOP;
+    COMMIT;
+END;
+/
+
+--- 6. GENERANDO 200 ASIGNATURAS
+
+DECLARE
+    v_prefijos SYS.ODCIVARCHAR2LIST := SYS.ODCIVARCHAR2LIST('Fundamentos de', 'Introducción a', 'Taller de', 'Laboratorio de', 'Gerencia de', 'Teoría de', 'Historia de', 'Metodología de');
+    v_temas SYS.ODCIVARCHAR2LIST := SYS.ODCIVARCHAR2LIST('Programación', 'Cálculo Diferencial', 'Derecho Romano', 'Marketing Digital', 'Anatomía Humana', 'Física Cuántica', 'Bases de Datos', 'Inteligencia Artificial', 'Estadística', 'Microeconomía', 'Diseño Urbano', 'Psicología Infantil', 'Contabilidad de Costos', 'Redes de Datos', 'Legislación Laboral');
+    v_sufijos SYS.ODCIVARCHAR2LIST := SYS.ODCIVARCHAR2LIST('I', 'II', 'III', 'Avanzado', 'Aplicado', 'General', 'Estratégico');
+    
+    v_nombre_asig VARCHAR2(100);
+    v_area VARCHAR2(50);
+BEGIN
+    FOR i IN 1..200 LOOP
+        -- Construir nombre tipo: "Fundamentos de Bases de Datos I"
+        v_nombre_asig := v_prefijos(TRUNC(DBMS_RANDOM.VALUE(1, 9))) || ' ' || 
+                         v_temas(TRUNC(DBMS_RANDOM.VALUE(1, 16))) || ' ' || 
+                         v_sufijos(TRUNC(DBMS_RANDOM.VALUE(1, 8)));
+                         
+        -- Asignar área basada en el nombre generado (lógica simple)
+        IF v_nombre_asig LIKE '%Programación%' OR v_nombre_asig LIKE '%Datos%' OR v_nombre_asig LIKE '%Redes%' OR v_nombre_asig LIKE '%Inteligencia%' THEN v_area := 'TECNOLOGIA';
+        ELSIF v_nombre_asig LIKE '%Derecho%' OR v_nombre_asig LIKE '%Legislación%' THEN v_area := 'LEGAL';
+        ELSIF v_nombre_asig LIKE '%Anatomía%' THEN v_area := 'SALUD';
+        ELSIF v_nombre_asig LIKE '%Marketing%' OR v_nombre_asig LIKE '%Gerencia%' OR v_nombre_asig LIKE '%Economía%' OR v_nombre_asig LIKE '%Contabilidad%' THEN v_area := 'ADMINISTRATIVA';
+        ELSE v_area := 'CIENCIAS BASICAS';
+        END IF;
+
+        INSERT INTO ASIGNATURA (
+            ID_ASIGNATURA, CODIGO_ASIGNATURA, NOMBRE_ASIGNATURA, 
+            NUMERO_CREDITOS, TIPO_ASIGNATURA, AREA_CONOCIMIENTO
+        ) VALUES (
+            SEQ_ASIGNATURA.NEXTVAL,
+            'ASIG-' || LPAD(i, 4, '0'), -- Ejemplo: ASIG-0001
+            v_nombre_asig,
+            TRUNC(DBMS_RANDOM.VALUE(2, 6)), -- Créditos entre 2 y 5
+            CASE WHEN MOD(i, 4) = 0 THEN 'OPTATIVA' ELSE 'OBLIGATORIA' END,
+            v_area
+        );
+    END LOOP;
+    COMMIT;
+END;
+/
+
+/*
+CUARTA FASE: Generacion de datos transaccionales, en donde se generan 12000 estudiantes, 1000 matriculas activas y
+3000 registros historicos.
+*/
+
+--PARA ESTUDIANTE
+--Nombres y Apellidos aleatorios 
+
+DECLARE
+  -- Listas de datos
+  nombres SYS.ODCIVARCHAR2LIST := SYS.ODCIVARCHAR2LIST(
+    'María', 'José', 'Luis', 'Ana', 'Javier', 'Paula', 'Diego', 'Lucía', 'Miguel', 'Carmen',
+    'Sara', 'Antonio', 'Laura', 'Daniel', 'Julio', 'Andrea', 'Fernando', 'Patricia', 'Juan', 'Sofía',
+    'Gabriel', 'Isabel', 'Iván', 'Marta', 'Santiago', 'Rosa', 'Pedro', 'Angela', 'Cristina', 'Manuel'
+  );
+  
+  apellidos SYS.ODCIVARCHAR2LIST := SYS.ODCIVARCHAR2LIST(
+    'García', 'Fernández', 'López', 'Martínez', 'Sánchez', 'Rodríguez', 'Pérez', 'Morales', 'Gómez', 'Ruiz',
+    'Díaz', 'Hernández', 'Muñoz', 'Jiménez', 'Romero', 'Vázquez', 'Alonso', 'Domínguez', 'Castro', 'Torres'
+  );
+
+  -- Variables temporales para asegurar consistencia
+  v_nombre_seleccionado VARCHAR2(100);
+  v_apellido_seleccionado VARCHAR2(100);
+  v_email_generado VARCHAR2(150);
+  
+BEGIN
+  -- Para insertar 2000 registros
+  FOR i IN 1 .. 2000 LOOP
+    
+    -- 1. Seleccionamos nombre y apellido UNA sola vez por iteración
+    -- Nota: Usamos .COUNT + 1 para que TRUNC pueda incluir el último elemento de la lista
+    v_nombre_seleccionado := nombres(TRUNC(DBMS_RANDOM.VALUE(1, nombres.COUNT + 1)));
+    v_apellido_seleccionado := apellidos(TRUNC(DBMS_RANDOM.VALUE(1, apellidos.COUNT + 1)));
+    
+    -- 2. Generamos el email ÚNICO agregando el número 'i' al final
+    -- Esto soluciona el error ORA-00001
+    v_email_generado := LOWER(v_nombre_seleccionado || '.' || v_apellido_seleccionado || i || '@universidad.edu.ec');
+
+    INSERT INTO ESTUDIANTE (
+      ID_ESTUDIANTE, 
+      NUMERO_UNICO, 
+      CEDULA, 
+      NOMBRES_ESTUDIANTE, 
+      APELLIDOS_ESTUDIANTE, 
+      EMAIL_INSTITUCIONAL, 
+      FECHA_INGRESO, 
+      ESTADO_ESTUDIANTE, 
+      IRA
+    )
+    VALUES (
+      SEQ_ESTUDIANTE.NEXTVAL,        -- Usamos la secuencia creada en el script
+      'E-' || LPAD(i, 5, '0'),       -- Numero unico formateado (ej: E-00123) para evitar duplicados
+      TO_CHAR(1000000000 + i),       -- Cédula incremental para evitar duplicados (UQ_EST_CEDULA)
+      v_nombre_seleccionado,
+      v_apellido_seleccionado,
+      v_email_generado,              -- Usamos el email único generado arriba
+      TO_DATE('01/09/2023', 'DD/MM/YYYY'),
+      'ACTIVO',
+      ROUND(DBMS_RANDOM.VALUE(7, 10), 2) -- IRA entre 7 y 10
+    );
+  END LOOP;
+  
+  COMMIT;
+  DBMS_OUTPUT.PUT_LINE('Se insertaron 2000 estudiantes correctamente.');
+END;
+/
+
+--- Se eliminan tildes y caracteres especiales
+UPDATE ESTUDIANTE
+SET 
+    -- Reemplaza ÁÉÍÓÚáéíóú por AEIOUaeiou y Ññ por Nn
+    NOMBRES_ESTUDIANTE = TRANSLATE(NOMBRES_ESTUDIANTE, 'ÁÉÍÓÚáéíóúÑñ', 'AEIOUaeiouNn'),
+    APELLIDOS_ESTUDIANTE = TRANSLATE(APELLIDOS_ESTUDIANTE, 'ÁÉÍÓÚáéíóúÑñ', 'AEIOUaeiouNn'),
+    -- Es recomendable limpiar también el correo si se generó con caracteres especiales
+    EMAIL_INSTITUCIONAL = TRANSLATE(EMAIL_INSTITUCIONAL, 'ÁÉÍÓÚáéíóúÑñ', 'AEIOUaeiouNn');
+
+COMMIT;
+
+--MATRICULA NECESITA DATOS DE PERIDO ACADEMICO ANTES
+--PARA PERIODO ACADEMICO
+DECLARE
+  -- Define las fechas reales de tus 5 periodos
+  TYPE fecha_periodo_type IS TABLE OF DATE;
+  TYPE codigo_periodo_type IS TABLE OF VARCHAR2(10);
+
+  fechas_inicio fecha_periodo_type := fecha_periodo_type(
+    TO_DATE('2025-09-01', 'YYYY-MM-DD'),
+    TO_DATE('2026-02-01', 'YYYY-MM-DD'),
+    TO_DATE('2026-09-01', 'YYYY-MM-DD'),
+    TO_DATE('2027-02-01', 'YYYY-MM-DD'),
+    TO_DATE('2027-09-01', 'YYYY-MM-DD')
+  );
+  fechas_fin fecha_periodo_type := fecha_periodo_type(
+    TO_DATE('2026-01-15', 'YYYY-MM-DD'),
+    TO_DATE('2026-06-30', 'YYYY-MM-DD'),
+    TO_DATE('2027-01-15', 'YYYY-MM-DD'),
+    TO_DATE('2027-06-30', 'YYYY-MM-DD'),
+    TO_DATE('2028-01-15', 'YYYY-MM-DD')
+  );
+  codigos codigo_periodo_type := codigo_periodo_type('2025A', '2025B', '2026A', '2026B', '2027A');
+BEGIN
+  FOR i IN 1..2000 LOOP
+    -- Cicla los periodos: cada grupo de registros compartirá fechas de uno de los 5 periodos reales
+    DECLARE
+      periodo_idx NUMBER := MOD(i-1, 5) + 1;
+    BEGIN
+      INSERT INTO PERIODO_ACADEMICO (
+        ID_PERIODO,
+        CODIGO_PERIODO,
+        NOMBRE_PERIODO,
+        FECHA_INICIO,
+        FECHA_FIN,
+        ESTADO_PERIODO
+      ) VALUES (
+        i,
+        codigos(periodo_idx) || '-' || i,      -- '2025A-1', '2025B-2', etc.
+        'Prd-' || i,
+        fechas_inicio(periodo_idx),
+        fechas_fin(periodo_idx),
+        CASE WHEN MOD(i,2)=0 THEN 'ACTIVO' ELSE 'INACTIVO' END
+      );
+    END;
+  END LOOP;
+END;
+/
+
+-- PARA MATRICULA
+-- LLena exactamente 1000 matrículas con FORMA_MATRICULA='ORDINARIA'
+DECLARE
+  fecha_base DATE := TO_DATE('2025-09-01', 'YYYY-MM-DD');
+  CURSOR c_est IS SELECT ID_ESTUDIANTE FROM ESTUDIANTE ORDER BY ID_ESTUDIANTE FETCH FIRST 1000 ROWS ONLY;
+  idx NUMBER := 0;
+BEGIN
+  FOR r_est IN c_est LOOP
+    idx := idx + 1;
+    INSERT INTO MATRICULA (
+      ID_MATRICULA,
+      ID_ESTUDIANTE,
+      ID_PERIODO,
+      FECHA_REGISTRO,
+      FORMA_MATRICULA
+    )
+    VALUES (
+      SEQ_MATRICULA.NEXTVAL,
+      r_est.ID_ESTUDIANTE,          -- Solo IDs válidos de estudiante
+      MOD(idx-1, 1000) + 1,         -- Periodos académicos entre 1 y 1000 (ajusta si tienes menos/más)
+      fecha_base + MOD(idx, 90),    -- Fechas distribuidas dentro de los 3 primeros meses
+      'ORDINARIA'                   -- Todas las matrículas activas
+    );
+    EXIT WHEN idx = 1000;           -- Asegura que solo se inserten 1,000
+  END LOOP;
+END;
+/
+
+--PARA HISTORIAL ACADEMICO
+-- Llenar 3000 registros simulados en HISTORIAL_ACADEMICO
+
+DECLARE
+  CURSOR c_est IS SELECT ID_ESTUDIANTE FROM ESTUDIANTE ORDER BY ID_ESTUDIANTE FETCH FIRST 3000 ROWS ONLY;
+  idx NUMBER := 0;
+  fecha_base DATE := TO_DATE('2025-11-23', 'YYYY-MM-DD'); -- Fecha actual como referencia
+BEGIN
+  FOR r_est IN c_est LOOP
+    idx := idx + 1;
+    INSERT INTO HISTORIAL_ACADEMICO (
+      ID_HISTORIAL,        -- Clave primaria autoincremental por secuencia
+      ID_ESTUDIANTE,       -- Solo IDs válidos de la tabla ESTUDIANTE
+      ID_PERIODO,          -- Periodos académicos existentes (ajusta el rango según tus datos)
+      NOTA_DEFINITIVA,     -- Calificación entre 7 y 10, dos decimales
+      ESTADO_MATERIA       -- Estado: alterna entre 'APROBADO' y 'REPROBADO'
+    )
+    VALUES (
+      idx,                               -- Usa contador como PK; si tienes una secuencia, reemplaza por historial_seq.NEXTVAL
+      r_est.ID_ESTUDIANTE,
+      MOD(idx-1, 1000) + 1,              -- Periodo entre 1 y 1000 (ajusta a tu rango de periodos disponibles)
+      ROUND(DBMS_RANDOM.VALUE(7, 10), 2),
+      CASE WHEN MOD(idx,2)=0 THEN 'APROBADO' ELSE 'REPROBADO' END
+    );
+    EXIT WHEN idx = 3000;                -- Solo se insertan 3,000 registros
+  END LOOP;
+END;
+/
+
+--- Transacciones masivas de matricula para el nuevo periodo academico
+SET SERVEROUTPUT ON;
+
+DECLARE
+    v_id_periodo NUMBER;
+    v_id_matricula NUMBER;
+    v_cnt_ofertas NUMBER;
+    v_existe_periodo NUMBER;
+BEGIN
+    -- ==========================================
+    -- 1. GESTIÓN DEL PERIODO ACADÉMICO (CORREGIDO)
+    -- ==========================================
+    
+    -- Verificamos si ya existe un periodo ACTIVO para no repetir el INSERT
+    SELECT COUNT(*) INTO v_existe_periodo 
+    FROM PERIODO_ACADEMICO 
+    WHERE ESTADO_PERIODO = 'ACTIVO';
+
+    IF v_existe_periodo > 0 THEN
+        -- Si ya existe, obtenemos su ID para usarlo
+        SELECT ID_PERIODO INTO v_id_periodo 
+        FROM PERIODO_ACADEMICO 
+        WHERE ESTADO_PERIODO = 'ACTIVO' 
+        FETCH FIRST 1 ROWS ONLY;
+        
+        DBMS_OUTPUT.PUT_LINE('>> Ya existía un periodo activo (ID: ' || v_id_periodo || '). Se usará este.');
+    ELSE
+        -- Si no existe, lo creamos
+        v_id_periodo := SEQ_PERIODO.NEXTVAL;
+        
+        INSERT INTO PERIODO_ACADEMICO (
+            ID_PERIODO, CODIGO_PERIODO, NOMBRE_PERIODO, FECHA_INICIO, FECHA_FIN, ESTADO_PERIODO
+        ) VALUES (
+            v_id_periodo, '2025-01', 'MAY-SEP', SYSDATE, SYSDATE + 120, 'ACTIVO'
+        );
+        DBMS_OUTPUT.PUT_LINE('>> Periodo Activo creado exitosamente (ID: ' || v_id_periodo || ').');
+    END IF;
+
+    -- ==========================================
+    -- 2. GESTIÓN DE OFERTA ACADÉMICA
+    -- ==========================================
+    
+    -- Verificamos si ya hay ofertas para este periodo para no duplicar
+    SELECT COUNT(*) INTO v_cnt_ofertas FROM OFERTA_ASIGNATURA WHERE ID_PERIODO = v_id_periodo;
+    
+    IF v_cnt_ofertas = 0 THEN
+        -- Si no hay ofertas, abrimos las 200 materias
+        FOR r_asig IN (SELECT ID_ASIGNATURA FROM ASIGNATURA) LOOP
+            INSERT INTO OFERTA_ASIGNATURA (
+                ID_OFERTA, ID_PERIODO, ID_ASIGNATURA, ID_DOCENTE, CODIGO_PARALELO, CUPO_MAXIMO, CUPO_DISPONIBLE
+            ) VALUES (
+                SEQ_OFERTA.NEXTVAL,
+                v_id_periodo,
+                r_asig.ID_ASIGNATURA,
+                (SELECT ID_DOCENTE FROM (SELECT ID_DOCENTE FROM DOCENTE ORDER BY DBMS_RANDOM.VALUE) WHERE ROWNUM = 1),
+                'A',
+                30,
+                30
+            );
+        END LOOP;
+        DBMS_OUTPUT.PUT_LINE('>> Se abrieron asignaturas para el periodo.');
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('>> Las ofertas académicas ya existían. Saltando este paso.');
+    END IF;
+
+    -- ==========================================
+    -- 3. MATRICULACIÓN MASIVA
+    -- ==========================================
+    DBMS_OUTPUT.PUT_LINE('>> Iniciando proceso de matriculación...');
+    
+    -- Tomaremos 500 estudiantes al azar
+    FOR r_est IN (SELECT ID_ESTUDIANTE FROM ESTUDIANTE ORDER BY DBMS_RANDOM.VALUE FETCH FIRST 500 ROWS ONLY) LOOP
+        
+        -- Verificar si el estudiante ya tiene matrícula en este periodo para no duplicar
+        DECLARE
+            v_tiene_matricula NUMBER;
+        BEGIN
+            SELECT COUNT(*) INTO v_tiene_matricula 
+            FROM MATRICULA 
+            WHERE ID_ESTUDIANTE = r_est.ID_ESTUDIANTE AND ID_PERIODO = v_id_periodo;
+            
+            IF v_tiene_matricula = 0 THEN
+                -- A. Crear Cabecera de Matrícula
+                v_id_matricula := SEQ_MATRICULA.NEXTVAL;
+                
+                INSERT INTO MATRICULA (
+                    ID_MATRICULA, ID_ESTUDIANTE, ID_PERIODO, FECHA_REGISTRO, FORMA_MATRICULA
+                ) VALUES (
+                    v_id_matricula, r_est.ID_ESTUDIANTE, v_id_periodo, SYSDATE, 'EN LINEA'
+                );
+
+                -- B. Inscribir materias (Calificaciones vacías)
+                FOR r_oferta IN (
+                    SELECT ID_OFERTA FROM OFERTA_ASIGNATURA 
+                    WHERE ID_PERIODO = v_id_periodo 
+                    ORDER BY DBMS_RANDOM.VALUE 
+                    FETCH FIRST 4 ROWS ONLY
+                ) LOOP
+                    INSERT INTO CALIFICACION (
+                        ID_CALIFICACION, ID_MATRICULA, ID_OFERTA, 
+                        NOTA_PARCIAL_1, ASISTENCIA_PORCENTAJE
+                    ) VALUES (
+                        SEQ_CALIFICACION.NEXTVAL,
+                        v_id_matricula,
+                        r_oferta.ID_OFERTA,
+                        ROUND(DBMS_RANDOM.VALUE(5, 20), 2), -- Nota inicial aleatoria
+                        100
+                    );
+                    
+                    -- Actualizar cupo (opcional)
+                    UPDATE OFERTA_ASIGNATURA SET CUPO_DISPONIBLE = CUPO_DISPONIBLE - 1 WHERE ID_OFERTA = r_oferta.ID_OFERTA;
+                END LOOP;
+            END IF;
+        END;
+        
+    END LOOP;
+    
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('=== PROCESO FINALIZADO EXITOSAMENTE ===');
+    DBMS_OUTPUT.PUT_LINE('Ahora puedes ejecutar tu SELECT con los JOINs.');
+END;
+/
+--- Terminada fase cuatro
+
+/*
+QUINTA FASE: Consultas Q1-Q8. Consultas de Joins y subconsultas (listado de alumnos, docentes con sobrecarga, riesgo de desercion)
+*/
+
+-- AGREGAR COLUMNA ID_CARRERA A ESTUDIANTE Y ASIGNAR VALORES ALEATORIOS
+-- 1. Agregar la columna faltante a la tabla
+ALTER TABLE ESTUDIANTE ADD ID_CARRERA INTEGER;
+
+-- 2. Crear la relación (Foreign Key) para mantener la integridad
+ALTER TABLE ESTUDIANTE 
+ADD CONSTRAINT FK_ESTUDIANTE_CARRERA 
+FOREIGN KEY (ID_CARRERA) REFERENCES CARRERA(ID_CARRERA);
+
+-- 3. Asignar una carrera aleatoria a los estudiantes que ya existen (Data Seeder)
+BEGIN
+  FOR r IN (SELECT ID_ESTUDIANTE FROM ESTUDIANTE) LOOP
+    UPDATE ESTUDIANTE 
+    SET ID_CARRERA = TRUNC(DBMS_RANDOM.VALUE(1, 36)) -- Asigna carrera random de la 1 a la 35
+    WHERE ID_ESTUDIANTE = r.ID_ESTUDIANTE;
+  END LOOP;
+  COMMIT;
+END;
+/
+
+--Q1: LISTADO DE ESTUDIANTES MATRICULADOS (PERIODO ACTUAL)
+--Muestra: Estudiante, Carrera, Asignatura, Docente y Paralelo
+SELECT 
+    e.NOMBRES_ESTUDIANTE || ' ' || e.APELLIDOS_ESTUDIANTE AS NOMBRE_COMPLETO,
+    c.NOMBRE_CARRERA,
+    asig.NOMBRE_ASIGNATURA,
+    d.NOMBRES_DOCENTE || ' ' || d.APELLIDOS_DOCENTE AS DOCENTE_ASIGNADO,
+    oa.CODIGO_PARALELO
+FROM ESTUDIANTE e
+-- 1. Unimos con la carrera para saber qué estudia
+JOIN CARRERA c ON e.ID_CARRERA = c.ID_CARRERA
+-- 2. Unimos con matrícula para ver si está inscrito
+JOIN MATRICULA m ON e.ID_ESTUDIANTE = m.ID_ESTUDIANTE
+-- 3. Filtramos solo el PERIODO ACTUAL (ACTIVO)
+JOIN PERIODO_ACADEMICO pa ON m.ID_PERIODO = pa.ID_PERIODO
+-- 4. Unimos con CALIFICACION, que es la tabla que conecta al alumno con la oferta específica
+JOIN CALIFICACION cal ON m.ID_MATRICULA = cal.ID_MATRICULA
+-- 5. Llegamos a la OFERTA para saber paralelo y docente
+JOIN OFERTA_ASIGNATURA oa ON cal.ID_OFERTA = oa.ID_OFERTA
+-- 6. Obtenemos el nombre de la materia
+JOIN ASIGNATURA asig ON oa.ID_ASIGNATURA = asig.ID_ASIGNATURA
+-- 7. Obtenemos el docente (LEFT JOIN por si alguna materia aún no tiene profe asignado)
+LEFT JOIN DOCENTE d ON oa.ID_DOCENTE = d.ID_DOCENTE
+WHERE pa.ESTADO_PERIODO = 'ACTIVO'
+ORDER BY e.APELLIDOS_ESTUDIANTE, asig.NOMBRE_ASIGNATURA;
+
+--Q2: docentes con su carga horaria actual,incluyendo: nombres, categoría académica, tipo de dedicación, total de horas de docencia
+--semanales, número de asignaturas que imparte.
+SELECT 
+    d.NOMBRES_DOCENTE || ' ' || d.APELLIDOS_DOCENTE AS NOMBRE_DOCENTE,
+    d.CATEGORIA_DOCENTE,
+    d.TIPO_PROFESOR AS TIPO_DEDICACION,
+    NVL(ROUND(SUM(CASE 
+        WHEN pa.ESTADO_PERIODO = 'ACTIVO' 
+        THEN (h.HORA_FIN - h.HORA_INICIO) * 24 
+        ELSE 0 
+    END), 2), 0) AS TOTAL_HORAS_SEMANALES,
+    COUNT(DISTINCT CASE 
+        WHEN pa.ESTADO_PERIODO = 'ACTIVO' 
+        THEN oa.ID_ASIGNATURA 
+    END) AS NUMERO_ASIGNATURAS
+FROM DOCENTE d
+LEFT JOIN OFERTA_ASIGNATURA oa ON d.ID_DOCENTE = oa.ID_DOCENTE
+LEFT JOIN PERIODO_ACADEMICO pa ON oa.ID_PERIODO = pa.ID_PERIODO
+LEFT JOIN HORARIO_CLASE h ON oa.ID_OFERTA = h.ID_OFERTA
+GROUP BY d.ID_DOCENTE, d.NOMBRES_DOCENTE, d.APELLIDOS_DOCENTE, d.CATEGORIA_DOCENTE, d.TIPO_PROFESOR
+ORDER BY TOTAL_HORAS_SEMANALES DESC;
+
+/* ============================================================
+   REPARACIÓN AUTÓNOMA PARA Q3 - INTEGRANTE 5
+   Asegura Asignaturas -> Mallas -> Prerrequisitos
+   ============================================================ */
+SET SERVEROUTPUT ON;
+
+BEGIN
+    -- 1. ASEGURAR ASIGNATURAS (Padres)
+    -- Insertamos IDs del 1 al 20 si no existen
+    FOR i IN 1..20 LOOP
+        MERGE INTO ASIGNATURA a USING (SELECT i ID, 'MAT-'||i C, 'Asignatura '||i N FROM DUAL) b
+        ON (a.ID_ASIGNATURA = b.ID)
+        WHEN NOT MATCHED THEN
+        INSERT (ID_ASIGNATURA, CODIGO_ASIGNATURA, NOMBRE_ASIGNATURA, NUMERO_CREDITOS, TIPO_ASIGNATURA, AREA_CONOCIMIENTO)
+        VALUES (b.ID, b.C, b.N, 4, 'OBLIGATORIA', 'CIENCIAS');
+    END LOOP;
+
+    -- 2. ASEGURAR MALLAS (Padres)
+    -- Creamos Malla 1 y 2 vinculadas a carreras existentes (o genéricas)
+    MERGE INTO MALLA_CURRICULAR a USING (SELECT 1 ID, 1 CARRERA FROM DUAL) b
+    ON (a.ID_MALLA = b.ID) WHEN NOT MATCHED THEN 
+    INSERT (ID_MALLA, ID_CARRERA, CODIGO_COHORTE, FECHA_APROBACION, TOTAL_CREDITOS, ESTADO_MALLA)
+    VALUES (b.ID, b.CARRERA, '2025', SYSDATE, 100, 'ACTIVA');
+
+    MERGE INTO MALLA_CURRICULAR a USING (SELECT 2 ID, 2 CARRERA FROM DUAL) b
+    ON (a.ID_MALLA = b.ID) WHEN NOT MATCHED THEN 
+    INSERT (ID_MALLA, ID_CARRERA, CODIGO_COHORTE, FECHA_APROBACION, TOTAL_CREDITOS, ESTADO_MALLA)
+    VALUES (b.ID, b.CARRERA, '2025', SYSDATE, 100, 'ACTIVA');
+
+    -- 3. VINCULAR ASIGNATURAS A MALLAS (Detalle)
+    FOR i IN 1..20 LOOP
+        MERGE INTO DETALLE_MALLA a USING (SELECT i ASIG, CASE WHEN i<=10 THEN 1 ELSE 2 END MALLA FROM DUAL) b
+        ON (a.ID_ASIGNATURA = b.ASIG AND a.ID_MALLA = b.MALLA) WHEN NOT MATCHED THEN
+        INSERT (ID_ASIGNATURA, ID_MALLA, SEMESTRE_SUGERIDO, HORAS_TEORICAS, HORAS_PRACTICAS)
+        VALUES (b.ASIG, b.MALLA, 1, 4, 2);
+    END LOOP;
+
+    -- 4. CREAR PRERREQUISITOS
+    -- Materia 2 requiere a la 1, la 4 a la 3, etc.
+    DELETE FROM TIENE_PRERREQUISITO; 
+    FOR i IN 2..20 LOOP
+        IF MOD(i, 2) = 0 THEN
+            INSERT INTO TIENE_PRERREQUISITO (ASI_ID_ASIGNATURA, ID_ASIGNATURA)
+            VALUES (i, i-1); 
+        END IF;
+    END LOOP;
+
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('¡Datos reparados! Ahora puedes ejecutar la consulta Q3.');
+END;
+/
+
+--Q3: Listado de Asignaturas con Prerrequisitos
+SELECT 
+    c.NOMBRE_CARRERA,
+    main.CODIGO_ASIGNATURA AS COD_MATERIA,
+    main.NOMBRE_ASIGNATURA AS MATERIA,
+    pre.CODIGO_ASIGNATURA AS COD_PRERREQUISITO,
+    pre.NOMBRE_ASIGNATURA AS PRERREQUISITO_REQUERIDO
+FROM ASIGNATURA main
+JOIN TIENE_PRERREQUISITO tp ON main.ID_ASIGNATURA = tp.ASI_ID_ASIGNATURA
+JOIN ASIGNATURA pre ON tp.ID_ASIGNATURA = pre.ID_ASIGNATURA
+JOIN DETALLE_MALLA dm ON main.ID_ASIGNATURA = dm.ID_ASIGNATURA
+JOIN MALLA_CURRICULAR mc ON dm.ID_MALLA = mc.ID_MALLA
+JOIN CARRERA c ON mc.ID_CARRERA = c.ID_CARRERA
+ORDER BY c.NOMBRE_CARRERA, main.CODIGO_ASIGNATURA;
+
+/* ============================================================
+   INYECCIÓN QUIRÚRGICA - SOLUCIÓN ORA-00001
+   Usa IDs altos (900000+) para evitar conflictos de clave primaria.
+   TODO ESTO PARA EJECUTAR Q4 SIN ERRORES NI VACIOS
+   ============================================================ */
+SET SERVEROUTPUT ON;
+
+BEGIN
+    -- 1. ASEGURAR PERIODO ACTIVO
+    MERGE INTO PERIODO_ACADEMICO a USING (SELECT 1 ID, '2025-A' C FROM DUAL) b
+    ON (a.ID_PERIODO = b.ID)
+    WHEN MATCHED THEN UPDATE SET ESTADO_PERIODO = 'ACTIVO'
+    WHEN NOT MATCHED THEN INSERT (ID_PERIODO, CODIGO_PERIODO, NOMBRE_PERIODO, FECHA_INICIO, FECHA_FIN, ESTADO_PERIODO)
+    VALUES (1, '2025-A', 'ACTUAL', SYSDATE, SYSDATE+100, 'ACTIVO');
+
+    UPDATE PERIODO_ACADEMICO SET ESTADO_PERIODO = 'CERRADO' WHERE ID_PERIODO <> 1;
+
+    -- 2. ASEGURAR ESTUDIANTES 1, 2, 3
+    FOR i IN 1..3 LOOP
+        MERGE INTO ESTUDIANTE a USING (SELECT i ID FROM DUAL) b
+        ON (a.ID_ESTUDIANTE = b.ID)
+        WHEN MATCHED THEN UPDATE SET IRA = 5.5, ID_CARRERA = 1
+        WHEN NOT MATCHED THEN INSERT (ID_ESTUDIANTE, NUMERO_UNICO, CEDULA, NOMBRES_ESTUDIANTE, APELLIDOS_ESTUDIANTE, EMAIL_INSTITUCIONAL, FECHA_INGRESO, ESTADO_ESTUDIANTE, IRA, ID_CARRERA)
+        VALUES (i, 'RIESGO-'||i, '170000000'||i, 'Estudiante', 'Riesgo '||i, 'riesgo'||i||'@epn.edu.ec', SYSDATE-200, 'ACTIVO', 5.5, 1);
+    END LOOP;
+
+    -- 3. LIMPIEZA SEGURA (Borrar hijos primero)
+    DELETE FROM CALIFICACION WHERE ID_MATRICULA IN (1, 2, 3);
+    DELETE FROM MATRICULA WHERE ID_MATRICULA IN (1, 2, 3);
+
+    -- 4. RECREAR MATRÍCULAS
+    FOR i IN 1..3 LOOP
+        INSERT INTO MATRICULA (ID_MATRICULA, ID_ESTUDIANTE, ID_PERIODO, FECHA_REGISTRO, FORMA_MATRICULA)
+        VALUES (i, i, 1, SYSDATE, 'ORDINARIA');
+    END LOOP;
+
+    -- Asegurar Oferta Dummy
+    MERGE INTO OFERTA_ASIGNATURA a USING (SELECT 999 ID FROM DUAL) b
+    ON (a.ID_OFERTA = b.ID)
+    WHEN NOT MATCHED THEN INSERT (ID_OFERTA, ID_PERIODO, ID_ASIGNATURA, ID_DOCENTE, CODIGO_PARALELO, CUPO_MAXIMO, CUPO_DISPONIBLE)
+    VALUES (999, 1, 1, 1, 'GR-RIESGO', 10, 10);
+
+    -- 5. INSERTAR CALIFICACIONES (Con IDs seguros 900000+)
+    FOR i IN 1..3 LOOP
+        INSERT INTO CALIFICACION (
+            ID_CALIFICACION, 
+            ID_MATRICULA, 
+            ID_OFERTA, 
+            NOTA_PARCIAL_1, 
+            NOTA_FINAL, 
+            ASISTENCIA_PORCENTAJE
+        )
+        VALUES (
+            900000 + i,  -- ID MUY ALTO para evitar ORA-00001
+            i, 
+            999, 
+            5.0, 
+            5.0, 
+            60.00
+        ); 
+    END LOOP;
+
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('¡Datos de riesgo inyectados correctamente! Ahora ejecuta Q4.');
+END;
+/
+
+--Q4: Desercion de Estudiantes (IRA < 6.0)
+SELECT 
+    m.ID_MATRICULA,
+    e.NOMBRES_ESTUDIANTE || ' ' || e.APELLIDOS_ESTUDIANTE AS ESTUDIANTE,
+    c.NOMBRE_CARRERA,
+    e.IRA AS PROMEDIO_ACUMULADO_GPA,
+    ROUND(AVG(cal.ASISTENCIA_PORCENTAJE), 2) || '%' AS ASISTENCIA_PROMEDIO
+FROM ESTUDIANTE e
+JOIN CARRERA c ON e.ID_CARRERA = c.ID_CARRERA
+JOIN MATRICULA m ON e.ID_ESTUDIANTE = m.ID_ESTUDIANTE
+JOIN PERIODO_ACADEMICO pa ON m.ID_PERIODO = pa.ID_PERIODO
+JOIN CALIFICACION cal ON m.ID_MATRICULA = cal.ID_MATRICULA
+WHERE pa.ESTADO_PERIODO = 'ACTIVO' 
+  AND e.IRA < 7.0
+GROUP BY m.ID_MATRICULA, e.NOMBRES_ESTUDIANTE, e.APELLIDOS_ESTUDIANTE, c.NOMBRE_CARRERA, e.IRA
+HAVING AVG(cal.ASISTENCIA_PORCENTAJE) < 75
+ORDER BY e.IRA ASC;
+
+/* ============================================================
+   GENERANDO INFRAESTRUCTURA (AULAS) Y HORARIOS
+   NECESARIO PARA Q5
+   ============================================================ */
+
+SET SERVEROUTPUT ON;
+
+DECLARE
+    v_id_aula NUMBER;
+    v_cnt_aulas NUMBER;
+    v_cnt_horarios NUMBER;
+    v_hora_inicio DATE;
+    v_fecha_base DATE := TRUNC(SYSDATE); -- Usamos la fecha de hoy como base para las horas
+BEGIN
+    -- 1. GENERAR AULAS (Si no existen)
+    SELECT COUNT(*) INTO v_cnt_aulas FROM AULA;
+    
+    IF v_cnt_aulas = 0 THEN
+        FOR i IN 1..50 LOOP
+            INSERT INTO AULA (ID_AULA, EDIFICIO_AULA, PISO_AULA, NUMERO_AULA, CAPACIDAD_ESTUDIANTES, TIPO_AULA, TIENE_PROYECTOR, DETALLE_EQUIPAMIENTO)
+            VALUES (
+                SEQ_AULA.NEXTVAL,
+                'EDIF-' || TRUNC(DBMS_RANDOM.VALUE(1, 9)), -- Edificios 1 al 8
+                TRUNC(DBMS_RANDOM.VALUE(1, 5)), -- Pisos 1 al 4
+                'A-' || LPAD(i, 3, '0'),
+                35,
+                CASE WHEN MOD(i, 5) = 0 THEN 'LABORATORIO' ELSE 'CLASE TEORICA' END,
+                1, -- Sí tiene proyector
+                'Pizarra, Proyector, PC Docente, Aire Acondicionado'
+            );
+        END LOOP;
+        DBMS_OUTPUT.PUT_LINE('>> Se crearon 50 Aulas.');
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('>> Las aulas ya existían.');
+    END IF;
+
+    -- 2. GENERAR HORARIOS PARA LA OFERTA ACTIVA
+    SELECT COUNT(*) INTO v_cnt_horarios FROM HORARIO_CLASE;
+    
+    IF v_cnt_horarios = 0 THEN
+        -- Recorremos todas las ofertas del periodo activo
+        FOR r_oferta IN (
+            SELECT oa.ID_OFERTA 
+            FROM OFERTA_ASIGNATURA oa
+            JOIN PERIODO_ACADEMICO pa ON oa.ID_PERIODO = pa.ID_PERIODO
+            WHERE pa.ESTADO_PERIODO = 'ACTIVO'
+        ) LOOP
+            -- Asignamos un aula aleatoria
+            v_id_aula := NULL;
+            SELECT ID_AULA INTO v_id_aula FROM (SELECT ID_AULA FROM AULA ORDER BY DBMS_RANDOM.VALUE) WHERE ROWNUM = 1;
+            
+            -- Definir hora base aleatoria (entre las 7am y las 18pm)
+            -- Nota: Usamos una fecha fija + horas para simular el campo DATE que guarda hora
+            v_hora_inicio := TO_DATE('01/01/2000', 'DD/MM/YYYY') + (TRUNC(DBMS_RANDOM.VALUE(7, 18)) / 24);
+
+            -- Insertar SESIÓN 1 (Ej: Lunes) - 2 Horas de clase
+            INSERT INTO HORARIO_CLASE (ID_HORARIO, ID_AULA, ID_OFERTA, DIA_SEMANA, HORA_INICIO, HORA_FIN)
+            VALUES (
+                SEQ_HORARIO.NEXTVAL,
+                v_id_aula,
+                r_oferta.ID_OFERTA,
+                'LUNES',
+                v_hora_inicio,
+                v_hora_inicio + (2/24) -- Sumar 2 horas
+            );
+
+            -- Insertar SESIÓN 2 (Ej: Miércoles) - 2 Horas de clase
+            INSERT INTO HORARIO_CLASE (ID_HORARIO, ID_AULA, ID_OFERTA, DIA_SEMANA, HORA_INICIO, HORA_FIN)
+            VALUES (
+                SEQ_HORARIO.NEXTVAL,
+                v_id_aula,
+                r_oferta.ID_OFERTA,
+                'MIERCOLES',
+                v_hora_inicio,
+                v_hora_inicio + (2/24) -- Sumar 2 horas
+            );
+            
+            -- Total generado por materia: 4 horas semanales.
+        END LOOP;
+        DBMS_OUTPUT.PUT_LINE('>> Horarios generados (4 horas por asignatura).');
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('>> Los horarios ya existían.');
+    END IF;
+    
+    COMMIT;
+END;
+/
+
+--Q5: Docentes con sobrecarga
+SELECT 
+    d.NUMERO_UNICO AS CODIGO_DOCENTE,
+    d.NOMBRES_DOCENTE || ' ' || d.APELLIDOS_DOCENTE AS NOMBRE_COMPLETO,
+    d.TIPO_PROFESOR AS DEDICACION,
+    ROUND(SUM((h.HORA_FIN - h.HORA_INICIO) * 24), 2) AS TOTAL_HORAS_SEMANALES,
+    COUNT(DISTINCT oa.ID_ASIGNATURA) AS NUMERO_ASIGNATURAS,
+    LISTAGG(asig.NOMBRE_ASIGNATURA, ', ') WITHIN GROUP (ORDER BY asig.NOMBRE_ASIGNATURA) AS DETALLE_ASIGNATURAS
+FROM DOCENTE d
+JOIN OFERTA_ASIGNATURA oa ON d.ID_DOCENTE = oa.ID_DOCENTE
+JOIN PERIODO_ACADEMICO pa ON oa.ID_PERIODO = pa.ID_PERIODO
+JOIN HORARIO_CLASE h ON oa.ID_OFERTA = h.ID_OFERTA
+JOIN ASIGNATURA asig ON oa.ID_ASIGNATURA = asig.ID_ASIGNATURA
+WHERE pa.ESTADO_PERIODO = 'ACTIVO'
+GROUP BY d.NUMERO_UNICO, d.NOMBRES_DOCENTE, d.APELLIDOS_DOCENTE, d.TIPO_PROFESOR
+HAVING SUM((h.HORA_FIN - h.HORA_INICIO) * 24) > 1
+ORDER BY TOTAL_HORAS_SEMANALES DESC;
+
+--Q6: Asignaturas con Alta Reprobación (>30%) en últimos 3 periodos
+SELECT 
+    a.CODIGO_ASIGNATURA,
+    a.NOMBRE_ASIGNATURA,
+    c.NOMBRE_CARRERA,
+    COUNT(cal.ID_CALIFICACION) AS TOTAL_ESTUDIANTES,
+    SUM(CASE WHEN cal.NOTA_FINAL < 7.0 THEN 1 ELSE 0 END) AS ESTUDIANTES_REPROBADOS,
+    ROUND((SUM(CASE WHEN cal.NOTA_FINAL < 7.0 THEN 1 ELSE 0 END) / COUNT(cal.ID_CALIFICACION)) * 100, 2) || '%' AS TASA_REPROBACION
+FROM ASIGNATURA a
+JOIN OFERTA_ASIGNATURA oa ON a.ID_ASIGNATURA = oa.ID_ASIGNATURA
+JOIN PERIODO_ACADEMICO pa ON oa.ID_PERIODO = pa.ID_PERIODO
+JOIN CALIFICACION cal ON oa.ID_OFERTA = cal.ID_OFERTA
+LEFT JOIN DETALLE_MALLA dm ON a.ID_ASIGNATURA = dm.ID_ASIGNATURA
+LEFT JOIN MALLA_CURRICULAR mc ON dm.ID_MALLA = mc.ID_MALLA
+LEFT JOIN CARRERA c ON mc.ID_CARRERA = c.ID_CARRERA
+WHERE pa.ID_PERIODO IN (1, 2, 3) -- Usamos IDs fijos ya que los acabamos de crear
+GROUP BY a.CODIGO_ASIGNATURA, a.NOMBRE_ASIGNATURA, c.NOMBRE_CARRERA
+HAVING (SUM(CASE WHEN cal.NOTA_FINAL < 7.0 THEN 1 ELSE 0 END) / COUNT(cal.ID_CALIFICACION)) > 0.30
+ORDER BY TASA_REPROBACION DESC;
+
+--Q7: Aulas con mayor ocupacion
+SELECT 
+    a.EDIFICIO_AULA, 
+    a.NUMERO_AULA, 
+    a.CAPACIDAD_ESTUDIANTES,
+    NVL(ROUND(SUM(CASE WHEN pa.ESTADO_PERIODO = 'ACTIVO' THEN (h.HORA_FIN - h.HORA_INICIO) * 24 ELSE 0 END), 2), 0) AS HORAS_USADAS,
+    70 AS HORAS_DISPONIBLES,
+    ROUND((NVL(SUM(CASE WHEN pa.ESTADO_PERIODO = 'ACTIVO' THEN (h.HORA_FIN - h.HORA_INICIO) * 24 ELSE 0 END), 0) / 70) * 100, 1) || '%' AS PORCENTAJE_OCUPACION
+FROM AULA a
+LEFT JOIN HORARIO_CLASE h ON a.ID_AULA = h.ID_AULA
+LEFT JOIN OFERTA_ASIGNATURA oa ON h.ID_OFERTA = oa.ID_OFERTA
+LEFT JOIN PERIODO_ACADEMICO pa ON oa.ID_PERIODO = pa.ID_PERIODO
+GROUP BY a.ID_AULA, a.EDIFICIO_AULA, a.NUMERO_AULA, a.CAPACIDAD_ESTUDIANTES
+ORDER BY HORAS_USADAS DESC;
+
+--Q8: Reporte de Matrícula y Becas por Carrera
+SELECT 
+    f.NOMBRE_FACULTAD,
+    c.NOMBRE_CARRERA,
+    c.NIVEL_CARRERA,
+    c.MODALIDAD_CARRERA,
+    COUNT(DISTINCT e.ID_ESTUDIANTE) AS ESTUDIANTES_ACTIVOS,
+    ROUND(AVG(e.IRA), 2) AS PROMEDIO_GPA_CARRERA,
+    ROUND((COUNT(DISTINCT ab.ID_ESTUDIANTE) / NULLIF(COUNT(DISTINCT e.ID_ESTUDIANTE),0)) * 100, 2) || '%' AS PORCENTAJE_BECADOS
+FROM CARRERA c
+JOIN FACULTAD f ON c.ID_FACULTAD = f.ID_FACULTAD
+JOIN ESTUDIANTE e ON c.ID_CARRERA = e.ID_CARRERA
+JOIN MATRICULA m ON e.ID_ESTUDIANTE = m.ID_ESTUDIANTE
+JOIN PERIODO_ACADEMICO pa ON m.ID_PERIODO = pa.ID_PERIODO
+LEFT JOIN ASIGNACION_BECA ab ON e.ID_ESTUDIANTE = ab.ID_ESTUDIANTE
+WHERE pa.ESTADO_PERIODO = 'ACTIVO'
+GROUP BY f.NOMBRE_FACULTAD, c.NOMBRE_CARRERA, c.NIVEL_CARRERA, c.MODALIDAD_CARRERA
+ORDER BY ESTUDIANTES_ACTIVOS DESC;
+
+-- Fin de la quinta fase
+
+/*
+SEXTA FASE: Consultas complejas Q9-Q15 de agregacion y analisis (eficiencia terminal, ranking de estudiantes, uso de espacios).
+Definir roles de usuarios (admin, docente, estudiante) y permisos en la DB.
+*/
+
+---Definicion de roles y permisos
+-- 1. ROL ADMINISTRADOR (Control total)
+CREATE ROLE ROLE_ADMINISTRADOR;
+GRANT ALL PRIVILEGES TO ROLE_ADMINISTRADOR;
+
+-- 2. ROL DOCENTE
+CREATE ROLE ROLE_DOCENTE;
+GRANT CONNECT TO ROLE_DOCENTE;
+GRANT CREATE SESSION TO ROLE_DOCENTE;
+
+-- Permisos de lectura de catálogos
+GRANT SELECT ON CARRERA TO ROLE_DOCENTE;
+GRANT SELECT ON ASIGNATURA TO ROLE_DOCENTE;
+GRANT SELECT ON PERIODO_ACADEMICO TO ROLE_DOCENTE;
+GRANT SELECT ON AULA TO ROLE_DOCENTE;
+-- Permisos de gestión académica (notas)
+GRANT SELECT, INSERT, UPDATE ON CALIFICACION TO ROLE_DOCENTE;
+GRANT SELECT ON ESTUDIANTE TO ROLE_DOCENTE;
+
+-- 3. ROL ESTUDIANTE
+CREATE ROLE ROLE_ESTUDIANTE;
+GRANT CONNECT TO ROLE_ESTUDIANTE;
+GRANT CREATE SESSION TO ROLE_ESTUDIANTE;
+
+-- El estudiante solo lee su información (Conceptualmente)
+GRANT SELECT ON CARRERA TO ROLE_ESTUDIANTE;
+GRANT SELECT ON MALLA_CURRICULAR TO ROLE_ESTUDIANTE;
+GRANT SELECT ON HORARIO_CLASE TO ROLE_ESTUDIANTE;
+-- Solo puede ver calificaciones, no tocar
+GRANT SELECT ON HISTORIAL_ACADEMICO TO ROLE_ESTUDIANTE;
+
+-- Q9: Análisis de Eficiencia Terminal (Tasa de graduación por carrera)
+SELECT 
+    c.NOMBRE_CARRERA,
+    COUNT(e.ID_ESTUDIANTE) AS TOTAL_ESTUDIANTES,
+    SUM(CASE WHEN e.ESTADO_ESTUDIANTE = 'GRADUADO' THEN 1 ELSE 0 END) AS GRADUADOS,
+    ROUND((SUM(CASE WHEN e.ESTADO_ESTUDIANTE = 'GRADUADO' THEN 1 ELSE 0 END) / COUNT(e.ID_ESTUDIANTE)) * 100, 2) || '%' AS TASA_EFICIENCIA
+FROM CARRERA c
+JOIN ESTUDIANTE e ON c.ID_CARRERA = e.ID_CARRERA -- Nota: El script Proyect.sql no asigna ID_CARRERA en el insert, verificar si da NULL
+GROUP BY c.NOMBRE_CARRERA
+ORDER BY TASA_EFICIENCIA DESC;
+
+-- Q10: Ranking Académico (Top 3 mejores estudiantes por Facultad según IRA)
+SELECT * FROM (
+    SELECT 
+        f.NOMBRE_FACULTAD,
+        e.NOMBRES_ESTUDIANTE || ' ' || e.APELLIDOS_ESTUDIANTE AS ESTUDIANTE,
+        e.IRA,
+        DENSE_RANK() OVER (PARTITION BY f.ID_FACULTAD ORDER BY e.IRA DESC) AS RANKING
+    FROM ESTUDIANTE e
+    -- Unimos con carrera y facultad (Asumiendo que ID_CARRERA en estudiante no sea nulo)
+    JOIN CARRERA c ON e.ID_CARRERA = c.ID_CARRERA 
+    JOIN FACULTAD f ON c.ID_FACULTAD = f.ID_FACULTAD
+    WHERE e.IRA IS NOT NULL
+) WHERE RANKING <= 3;
+
+-- Q11: Análisis de Uso de Espacios (Aulas con mayor carga horaria)
+SELECT 
+    a.EDIFICIO_AULA,
+    a.NUMERO_AULA,
+    a.TIPO_AULA,
+    COUNT(h.ID_HORARIO) AS CLASES_PROGRAMADAS
+FROM AULA a
+LEFT JOIN HORARIO_CLASE h ON a.ID_AULA = h.ID_AULA
+GROUP BY a.EDIFICIO_AULA, a.NUMERO_AULA, a.TIPO_AULA
+ORDER BY CLASES_PROGRAMADAS DESC;
+
+-- Q12: Desempeño Docente (Promedio de notas finales en sus clases)
+SELECT 
+    d.NOMBRES_DOCENTE || ' ' || d.APELLIDOS_DOCENTE AS DOCENTE,
+    COUNT(cal.ID_CALIFICACION) AS TOTAL_EVALUADOS,
+    ROUND(AVG(cal.NOTA_FINAL), 2) AS PROMEDIO_CLASE
+FROM DOCENTE d
+JOIN OFERTA_ASIGNATURA oa ON d.ID_DOCENTE = oa.ID_DOCENTE
+JOIN CALIFICACION cal ON oa.ID_OFERTA = cal.ID_OFERTA
+GROUP BY d.NOMBRES_DOCENTE, d.APELLIDOS_DOCENTE
+ORDER BY PROMEDIO_CLASE DESC;
+
+
+-- GENERACION ASIGNACIONES DE BECAS
+SET SERVEROUTPUT ON;
+
+DECLARE
+    v_cnt_becas NUMBER;
+    v_fecha_unica DATE := SYSDATE;
+    v_monto NUMBER;
+    v_porcentaje NUMBER;
+    v_id_beca NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO v_cnt_becas FROM ASIGNACION_BECA;
+    
+    IF v_cnt_becas = 0 THEN
+        FOR r_est IN (
+            SELECT ID_ESTUDIANTE 
+            FROM ESTUDIANTE 
+            ORDER BY DBMS_RANDOM.VALUE 
+            FETCH FIRST 300 ROWS ONLY
+        ) LOOP
+            
+            v_id_beca := TRUNC(DBMS_RANDOM.VALUE(1, 7)); 
+            
+            IF v_id_beca = 1 THEN -- Excelencia
+                -- CAMBIO AQUI: Usamos 99.99 porque 100 no cabe en NUMBER(4,2)
+                v_porcentaje := 99.99; 
+                v_monto := 150.00;
+            ELSIF v_id_beca = 3 THEN 
+                v_porcentaje := 50;
+                v_monto := 100.00;
+            ELSE
+                v_porcentaje := 25;
+                v_monto := 50.00;
+            END IF;
+
+            v_fecha_unica := v_fecha_unica - (1/1440); 
+
+            INSERT INTO ASIGNACION_BECA (
+                FECHA_ASIGNACION, ID_ESTUDIANTE, ID_BECA, PORCENTAJE_COBERTURA, MONTO_ALIMENTACION
+            ) VALUES (
+                v_fecha_unica, r_est.ID_ESTUDIANTE, v_id_beca, v_porcentaje, v_monto
+            );
+            
+        END LOOP;
+        COMMIT;
+        DBMS_OUTPUT.PUT_LINE('>> Se han asignado 300 becas.');
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('>> La tabla de asignacion de becas ya tenia datos.');
+    END IF;
+END;
+/
+
+-- Q13: Análisis Financiero de Becas (Cobertura promedio e inversión)
+SELECT 
+    tb.NOMBRE_BECA,
+    COUNT(ab.ID_ESTUDIANTE) AS BENEFICIARIOS,
+    ROUND(AVG(ab.PORCENTAJE_COBERTURA), 1) || '%' AS COBERTURA_PROM,
+    TO_CHAR(SUM(ab.MONTO_ALIMENTACION), '$99,999.00') AS INVERSION_TOTAL
+FROM ASIGNACION_BECA ab
+JOIN TIPO_BECA tb ON ab.ID_BECA = tb.ID_BECA
+GROUP BY tb.NOMBRE_BECA;
+
+--- GENERANDO MODULO DE INVESTIGACION (DEPARTAMENTOS, PROYECTOS, PAPERS)
+SET SERVEROUTPUT ON;
+
+DECLARE
+    v_id_dep NUMBER;
+    v_id_proy NUMBER;
+    v_cnt_dep NUMBER;
+    
+    -- Listas para generar nombres realistas
+    TYPE t_lista IS VARRAY(20) OF VARCHAR2(100);
+    v_nombres_dep t_lista := t_lista(
+        'Departamento de Inteligencia Artificial', 'Departamento de Robótica', 
+        'Departamento de Salud Pública', 'Departamento de Cirugía',
+        'Departamento de Finanzas', 'Departamento de Marketing',
+        'Departamento de Derecho Penal', 'Departamento de Derechos Humanos',
+        'Departamento de Urbanismo', 'Departamento de Historia',
+        'Departamento de Psicología Clínica', 'Departamento de Sociología',
+        'Departamento de Economía Aplicada', 'Departamento de Periodismo Digital'
+    );
+    
+    v_titulos_proy t_lista := t_lista(
+        'Análisis de Big Data en Salud', 'Impacto de la IA en la Educación',
+        'Nuevos Tratamientos para Diabetes', 'Economía Circular en Pymes',
+        'Derecho Digital y Privacidad', 'Sostenibilidad Urbana',
+        'Salud Mental Post-Pandemia', 'Automatización Industrial',
+        'Marketing en Redes Sociales', 'Historia Económica del Ecuador'
+    );
+    
+BEGIN
+    -- 1. CREAR DEPARTAMENTOS (Si no existen)
+    SELECT COUNT(*) INTO v_cnt_dep FROM DEPARTAMENTO;
+    
+    IF v_cnt_dep = 0 THEN
+        -- Creamos departamentos asignándolos cíclicamente a las 8 facultades
+        FOR i IN 1..v_nombres_dep.COUNT LOOP
+            INSERT INTO DEPARTAMENTO (ID_DEPARTAMENTO, ID_FACULTAD, NOMBRE_DEPARTAMENTO)
+            VALUES (
+                SEQ_DEPARTAMENTO.NEXTVAL,
+                MOD(i, 8) + 1, -- Asignar a facultades 1-8
+                v_nombres_dep(i)
+            );
+        END LOOP;
+        DBMS_OUTPUT.PUT_LINE('>> Se crearon ' || v_nombres_dep.COUNT || ' Departamentos de Investigación.');
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('>> Los departamentos ya existían.');
+    END IF;
+
+    -- 2. CREAR PROYECTOS DE INVESTIGACIÓN
+    -- Generamos 40 proyectos aleatorios
+    FOR i IN 1..40 LOOP
+        v_id_proy := SEQ_PROYECTO.NEXTVAL;
+        
+        INSERT INTO PROYECTO_INVESTIGACION (
+            ID_PROYECTO, ID_DOCENTE, ID_DEPARTAMENTO, 
+            CODIGO_PROYECTO, TITULO_PROYECTO, LINEA_INVESTIGACION, 
+            PRESUPUESTO_ASIGNADO, FECHA_INICIO, ESTADO_PROYECTO
+        ) VALUES (
+            v_id_proy,
+            (SELECT ID_DOCENTE FROM (SELECT ID_DOCENTE FROM DOCENTE ORDER BY DBMS_RANDOM.VALUE) WHERE ROWNUM = 1), -- Docente Random
+            TRUNC(DBMS_RANDOM.VALUE(1, 14)), -- Departamento Random (1-14)
+            'INV-' || LPAD(i, 4, '0'),
+            v_titulos_proy(TRUNC(DBMS_RANDOM.VALUE(1, 11))) || ' - Fase ' || i,
+            'Ciencia y Tecnología',
+            ROUND(DBMS_RANDOM.VALUE(5000, 50000), 2), -- Presupuesto entre $5k y $50k
+            SYSDATE - TRUNC(DBMS_RANDOM.VALUE(100, 500)), -- Fecha inicio hace tiempo
+            CASE WHEN MOD(i, 3) = 0 THEN 'FINALIZADO' ELSE 'EN EJECUCION' END
+        );
+
+        -- 3. CREAR PUBLICACIONES (PAPERS) PARA ESTE PROYECTO
+        -- Algunos proyectos tienen papers, otros no.
+        IF DBMS_RANDOM.VALUE > 0.3 THEN -- 70% de probabilidad de tener paper
+            INSERT INTO PUBLICACION (
+                ID_PUBLICACION, ID_PROYECTO, TITULO_PUBLICACION, DOI, REVISTA
+            ) VALUES (
+                SEQ_PUBLICACION.NEXTVAL,
+                v_id_proy,
+                'Estudio de Caso: ' || v_titulos_proy(TRUNC(DBMS_RANDOM.VALUE(1, 11))),
+                '10.1016/j.science.' || i,
+                CASE WHEN MOD(i, 2) = 0 THEN 'Nature Science' ELSE 'IEEE Transactions' END
+            );
+        END IF;
+        
+    END LOOP;
+    
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('>> Se generaron 40 Proyectos y sus Publicaciones asociadas.');
+END;
+/
+
+-- Q14: Productividad Científica por Departamento
+SELECT 
+    dep.NOMBRE_DEPARTAMENTO,
+    COUNT(DISTINCT pi.ID_PROYECTO) AS PROYECTOS_ACTIVOS,
+    SUM(pi.PRESUPUESTO_ASIGNADO) AS PRESUPUESTO_TOTAL,
+    COUNT(pub.ID_PUBLICACION) AS PUBLICACIONES_INDEXADAS
+FROM DEPARTAMENTO dep
+LEFT JOIN PROYECTO_INVESTIGACION pi ON dep.ID_DEPARTAMENTO = pi.ID_DEPARTAMENTO
+LEFT JOIN PUBLICACION pub ON pi.ID_PROYECTO = pub.ID_PROYECTO
+GROUP BY dep.NOMBRE_DEPARTAMENTO
+ORDER BY PRESUPUESTO_TOTAL DESC;
+
+--- GENERANDO PROCESOS DE TITULACION (SIMULACION DE EGRESADOS)
+
+SET SERVEROUTPUT ON;
+
+DECLARE
+    v_id_proceso NUMBER;
+    v_fecha_ingreso_antigua DATE;
+    v_fecha_defensa DATE;
+    v_cnt_titulados NUMBER;
+    
+    -- Temas de tesis aleatorios
+    TYPE t_temas IS VARRAY(10) OF VARCHAR2(100);
+    v_lista_temas t_temas := t_temas(
+        'Implementación de Algoritmos Genéticos', 'Diseño de Centros Culturales', 
+        'Análisis de Mercado Post-Pandemia', 'Derecho Constitucional Comparado',
+        'Impacto de la Telemedicina', 'Automatización de Procesos',
+        'Estudio de Suelos Volcánicos', 'Psicología del Consumidor',
+        'Periodismo de Datos', 'Gestión de Talento Humano'
+    );
+BEGIN
+    -- Verificamos si ya hay datos
+    SELECT COUNT(*) INTO v_cnt_titulados FROM PROCESO_TITULACION;
+    
+    IF v_cnt_titulados = 0 THEN
+        
+        -- Seleccionamos 50 estudiantes para graduarlos
+        FOR r_est IN (SELECT ID_ESTUDIANTE FROM ESTUDIANTE ORDER BY DBMS_RANDOM.VALUE FETCH FIRST 50 ROWS ONLY) LOOP
+            
+            -- TRUCO IMPORTANTE: "Envejecer" al estudiante.
+            -- Actualizamos su fecha de ingreso a hace 4 o 5 años (entre 48 y 60 meses atrás)
+            v_fecha_ingreso_antigua := ADD_MONTHS(SYSDATE, -TRUNC(DBMS_RANDOM.VALUE(48, 65)));
+            
+            UPDATE ESTUDIANTE 
+            SET FECHA_INGRESO = v_fecha_ingreso_antigua,
+                ESTADO_ESTUDIANTE = 'GRADUADO' -- Lo marcamos como graduado
+            WHERE ID_ESTUDIANTE = r_est.ID_ESTUDIANTE;
+            
+            -- Calculamos la fecha de defensa (aprox 4.5 a 5.5 años después del ingreso)
+            -- Esto asegurará que tu consulta dé resultados lógicos (ej: 4.5 años)
+            v_fecha_defensa := ADD_MONTHS(v_fecha_ingreso_antigua, TRUNC(DBMS_RANDOM.VALUE(50, 60))); 
+            
+            -- Insertar el proceso de titulación
+            INSERT INTO PROCESO_TITULACION (
+                ID_PROCESO, ID_ESTUDIANTE, ID_DOCENTE, 
+                MODALIDAD_PROCESO, TEMA_PROPUESTO, 
+                FECHA_DEFENSA, NOTA_FINAL_GRADO, ESTADO_PROCESO
+            ) VALUES (
+                SEQ_PROCESO_TIT.NEXTVAL,
+                r_est.ID_ESTUDIANTE,
+                (SELECT ID_DOCENTE FROM (SELECT ID_DOCENTE FROM DOCENTE ORDER BY DBMS_RANDOM.VALUE) WHERE ROWNUM = 1),
+                CASE WHEN MOD(SEQ_PROCESO_TIT.CURRVAL, 2) = 0 THEN 'TESIS DE GRADO' ELSE 'PROYECTO TECNICO' END,
+                v_lista_temas(TRUNC(DBMS_RANDOM.VALUE(1, 11))),
+                v_fecha_defensa,
+                ROUND(DBMS_RANDOM.VALUE(8, 10), 2), -- Notas altas para graduados
+                'APROBADO'
+            );
+            
+        END LOOP;
+        
+        COMMIT;
+        DBMS_OUTPUT.PUT_LINE('>> Se generaron 50 graduados con fechas históricas corregidas.');
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('>> Ya existían procesos de titulación.');
+    END IF;
+END;
+/
+
+-- Q15: Tiempo Promedio de Titulación (Análisis de eficiencia de egreso)
+SELECT 
+    ROUND(AVG(MONTHS_BETWEEN(pt.FECHA_DEFENSA, e.FECHA_INGRESO) / 12), 2) AS ANIOS_PROMEDIO_TITULACION,
+    MIN(ROUND(MONTHS_BETWEEN(pt.FECHA_DEFENSA, e.FECHA_INGRESO) / 12, 1)) AS TIEMPO_MINIMO,
+    MAX(ROUND(MONTHS_BETWEEN(pt.FECHA_DEFENSA, e.FECHA_INGRESO) / 12, 1)) AS TIEMPO_MAXIMO
+FROM PROCESO_TITULACION pt
+JOIN ESTUDIANTE e ON pt.ID_ESTUDIANTE = e.ID_ESTUDIANTE
+WHERE pt.ESTADO_PROCESO = 'APROBADO';
+
+---Fin de la sexta fase
+
+/*
+INSERCION DE DATOS PREVIA A LA SEPTIMA FASE:
+LLENANDO TABLAS RESTANTES (BIBLIOTECA, TITULOS, MALLAS, RELACIONES)
+*/
+
+SET SERVEROUTPUT ON;
+
+DECLARE
+    v_id_libro NUMBER;
+    v_id_malla NUMBER;
+    v_cnt_libros NUMBER;
+    v_cnt_titulos NUMBER;
+    v_fecha_prestamo DATE; 
+    
+    TYPE t_libros IS VARRAY(10) OF VARCHAR2(100);
+    v_titulos_libros t_libros := t_libros('Clean Code', 'Inteligencia Artificial', 'Principios de Economía', 'Anatomía de Gray', 'Derecho Penal', 'Cálculo de Stewart', 'Física Universitaria', 'Metodología Investigación', 'Diseño de Patrones', 'Psicología Social');
+BEGIN
+    
+    -- =============================================
+    -- 1. BIBLIOTECA (LIBROS Y PRESTAMOS)
+    -- =============================================
+    SELECT COUNT(*) INTO v_cnt_libros FROM LIBRO;
+    
+    IF v_cnt_libros = 0 THEN
+        FOR i IN 1..100 LOOP
+            BEGIN
+                v_id_libro := SEQ_LIBRO.NEXTVAL;
+                
+                INSERT INTO LIBRO (ID_LIBRO, ISBN, TITULO_LIBRO, AUTOR, EDITORIAL, STOCK_DISPONIBLE)
+                VALUES (
+                    v_id_libro,
+                    '978-3-' || LPAD(i, 6, '0'),
+                    v_titulos_libros(TRUNC(DBMS_RANDOM.VALUE(1, 11))) || ' Vol. ' || i,
+                    'Autor Generico ' || i,
+                    CASE WHEN MOD(i, 2) = 0 THEN 'Pearson' ELSE 'McGraw Hill' END,
+                    TRUNC(DBMS_RANDOM.VALUE(5, 20))
+                );
+                
+                IF MOD(i, 4) = 0 THEN
+                    -- Fecha única garantizada restando minutos
+                    v_fecha_prestamo := (SYSDATE - TRUNC(DBMS_RANDOM.VALUE(1, 30))) - (i / 1440);
+
+                    INSERT INTO PRESTAMO (FECHA_PRESTAMO, ID_ESTUDIANTE, ID_LIBRO, FECHA_DEVOLUCION_PREVISTA, FECHA_DEVOLUCION_REAL)
+                    VALUES (
+                        v_fecha_prestamo,
+                        (SELECT ID_ESTUDIANTE FROM (SELECT ID_ESTUDIANTE FROM ESTUDIANTE ORDER BY DBMS_RANDOM.VALUE) WHERE ROWNUM = 1),
+                        v_id_libro,
+                        SYSDATE + 7,
+                        NULL
+                    );
+                END IF;
+            EXCEPTION
+                WHEN DUP_VAL_ON_INDEX THEN NULL; -- Ignorar si libro o prestamo ya existe
+            END;
+        END LOOP;
+        DBMS_OUTPUT.PUT_LINE('>> Biblioteca verificada/generada.');
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('>> Biblioteca ya tenía datos.');
+    END IF;
+
+    -- =============================================
+    -- 2. TITULOS ACADEMICOS DE DOCENTES
+    -- =============================================
+    SELECT COUNT(*) INTO v_cnt_titulos FROM TITULO_ACADEMICO;
+    
+    IF v_cnt_titulos = 0 THEN
+        FOR r_doc IN (SELECT ID_DOCENTE FROM DOCENTE) LOOP
+            BEGIN
+                INSERT INTO TITULO_ACADEMICO (ID_TITULO, ID_DOCENTE, NOMBRE_TITULO, NIVEL_TITULO, UNIVERSIDAD)
+                VALUES (
+                    SEQ_TITULO.NEXTVAL,
+                    r_doc.ID_DOCENTE,
+                    CASE WHEN MOD(r_doc.ID_DOCENTE, 5) = 0 THEN 'PhD en Ciencias' ELSE 'Magister en Educación' END,
+                    CASE WHEN MOD(r_doc.ID_DOCENTE, 5) = 0 THEN 'DOCTORADO' ELSE 'MAESTRIA' END,
+                    'Universidad Internacional ' || TRUNC(DBMS_RANDOM.VALUE(1, 10))
+                );
+            EXCEPTION
+                WHEN DUP_VAL_ON_INDEX THEN NULL; -- Si ya tiene titulo, seguir
+            END;
+        END LOOP;
+        DBMS_OUTPUT.PUT_LINE('>> Títulos académicos asignados.');
+    END IF;
+
+    -- =============================================
+    -- 3. MALLAS CURRICULARES (AQUÍ ESTABA EL ERROR)
+    -- =============================================
+    FOR r_car IN (SELECT ID_CARRERA FROM CARRERA) LOOP
+        DECLARE 
+            v_existe_malla NUMBER; 
+        BEGIN
+            -- Verificar si la carrera YA tiene malla asignada
+            SELECT COUNT(*) INTO v_existe_malla FROM MALLA_CURRICULAR WHERE ID_CARRERA = r_car.ID_CARRERA;
+            
+            IF v_existe_malla = 0 THEN
+                BEGIN
+                    -- Intentamos insertar la malla
+                    v_id_malla := SEQ_MALLA.NEXTVAL;
+                    
+                    INSERT INTO MALLA_CURRICULAR (ID_MALLA, ID_CARRERA, CODIGO_COHORTE, FECHA_APROBACION, TOTAL_CREDITOS, ESTADO_MALLA)
+                    VALUES (v_id_malla, r_car.ID_CARRERA, '2023-2027', TO_DATE('01/01/2023','DD/MM/YYYY'), 120, 'ACTIVA');
+                    
+                    -- Asignar materias a la malla
+                    FOR r_asig IN (SELECT ID_ASIGNATURA FROM ASIGNATURA ORDER BY DBMS_RANDOM.VALUE FETCH FIRST 10 ROWS ONLY) LOOP
+                        BEGIN
+                            INSERT INTO DETALLE_MALLA (ID_ASIGNATURA, ID_MALLA, SEMESTRE_SUGERIDO, HORAS_TEORICAS, HORAS_PRACTICAS)
+                            VALUES (r_asig.ID_ASIGNATURA, v_id_malla, TRUNC(DBMS_RANDOM.VALUE(1, 9)), 64, 32);
+                        EXCEPTION 
+                            WHEN DUP_VAL_ON_INDEX THEN NULL; -- Ignorar materia duplicada en la misma malla
+                        END;
+                    END LOOP;
+                EXCEPTION
+                    -- Si falla la inserción de la malla (ej: ID duplicado), capturamos el error aquí y seguimos
+                    WHEN DUP_VAL_ON_INDEX THEN 
+                        DBMS_OUTPUT.PUT_LINE('>> Advertencia: ID de Malla duplicado o carrera ya asignada. Saltando.');
+                END;
+            END IF;
+        END;
+    END LOOP;
+    DBMS_OUTPUT.PUT_LINE('>> Mallas curriculares procesadas.');
+
+    -- =============================================
+    -- 4. RELACIONES (AUTORIA, TRIBUNALES, PROYECTOS)
+    -- =============================================
+    
+    -- Autoria
+    FOR r_pub IN (SELECT ID_PUBLICACION FROM PUBLICACION) LOOP
+       BEGIN
+          INSERT INTO AUTORIA (ID_PUBLICACION, ID_DOCENTE, ORDEN_AUTOR)
+          VALUES (r_pub.ID_PUBLICACION, (SELECT ID_DOCENTE FROM (SELECT ID_DOCENTE FROM DOCENTE ORDER BY DBMS_RANDOM.VALUE) WHERE ROWNUM = 1), 1);
+       EXCEPTION WHEN DUP_VAL_ON_INDEX THEN NULL;
+       END;
+    END LOOP;
+
+    -- Tribunales
+    FOR r_proc IN (SELECT ID_PROCESO FROM PROCESO_TITULACION) LOOP
+        FOR i IN 1..3 LOOP
+            BEGIN
+                INSERT INTO TRIBUNAL_GRADO (ID_PROCESO, ID_DOCENTE)
+                VALUES (r_proc.ID_PROCESO, (SELECT ID_DOCENTE FROM (SELECT ID_DOCENTE FROM DOCENTE ORDER BY DBMS_RANDOM.VALUE) WHERE ROWNUM = 1));
+            EXCEPTION WHEN DUP_VAL_ON_INDEX THEN NULL;
+            END;
+        END LOOP;
+    END LOOP;
+    
+    -- Colaboradores en Proyectos
+    FOR r_proy IN (SELECT ID_PROYECTO FROM PROYECTO_INVESTIGACION) LOOP
+       BEGIN
+          INSERT INTO COLABORAN_EN (ID_PROYECTO, ID_DOCENTE)
+          VALUES (r_proy.ID_PROYECTO, (SELECT ID_DOCENTE FROM (SELECT ID_DOCENTE FROM DOCENTE ORDER BY DBMS_RANDOM.VALUE) WHERE ROWNUM = 1));
+       EXCEPTION WHEN DUP_VAL_ON_INDEX THEN NULL;
+       END;
+    END LOOP;
+
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('=== BASE DE DATOS COMPLETAMENTE POBLADA (FINAL) ===');
+END;
+/
+
+/*
+SEPTIMA FASE: Verificar que el modelo cumpla los 88 reglas del documento base
+*/
+
+------------------------------------------------------------------------------------------------------
+-- Reglas sobre estructura organizacional
+------------------------------------------------------------------------------------------------------
+-- La universidad tiene facultades que agrupan carreras(violacion de 2.1.1)
+INSERT INTO SISTEMA_UNIVERSITARIO.CARRERA (
+  ID_CARRERA, ID_FACULTAD, NOMBRE_CARRERA, NIVEL_CARRERA, MODALIDAD_CARRERA
+) VALUES (
+  9001, NULL, 'Ingeniería Industrial', 'GRADO', 'PRESENCIAL'
+);
+
+------------------------------------------------------------------------------------------------------
+-- Facultad sin decano (violacion de 2.1.2)
+INSERT INTO SISTEMA_UNIVERSITARIO.FACULTAD (ID_FACULTAD, ID_DOCENTE, NOMBRE_FACULTAD, NUMERO_EDIFICIO)
+VALUES (10, NULL, 'Facultad de Sistemas', 3);
+
+------------------------------------------------------------------------------------------------------
+-- Una facultad puede tener DEPARTAMENTOS académicos (violacion de 2.1.3)
+INSERT INTO SISTEMA_UNIVERSITARIO.DEPARTAMENTO (	
+    ID_DEPARTAMENTO, ID_FACULTAD, NOMBRE_DEPARTAMENTO
+)VALUES(
+  2001, NULL, "Departamento de Matematicas"
+) 
+
+------------------------------------------------------------------------------------------------------
+-- Carrera sin facultad (violación de 2.1.4)
+INSERT INTO SISTEMA_UNIVERSITARIO.CARRERA (ID_CARRERA, ID_FACULTAD, ID_DOCENTE, NOMBRE_CARRERA, NIVEL_CARRERA, MODALIDAD_CARRERA, DURACION_SEMESTRES)
+VALUES (1001, NULL, 501, 'Ingeniería C', 'GRADO', 'PRESENCIAL', 8);
+
+------------------------------------------------------------------------------------------------------
+-- Las carreras tienen niveles (violación de 2.1.5)
+INSERT INTO SISTEMA_UNIVERSITARIO.CARRERA (ID_CARRERA, ID_FACULTAD, ID_DOCENTE, NOMBRE_CARRERA, NIVEL_CARRERA, MODALIDAD_CARRERA, DURACION_SEMESTRES ) 
+VALUES (1001, "Facultad de Ciencias", "1002", "MATEMATICAS", NULL, "PRESENCIAL", 9)
+
+------------------------------------------------------------------------------------------------------
+-- Cada carrera tiene un COORDINADOR (violación de 2.1.6)
+INSERT INTO SISTEMA_UNIVERSITARIO.CARRERA (ID_CARRERA, ID_FACULTAD, ID_DOCENTE, NOMBRE_CARRERA, NIVEL_CARRERA, MODALIDAD_CARRERA, DURACION_SEMESTRES ) 
+VALUES (1001, "Facultad de Ciencias", NULL, "MATEMATICAS", "GRADO", "PRESENCIAL", 9)
+
+------------------------------------------------------------------------------------------------------
+-- Una carrera puede ofrecer diferentes modalidades (violación de 2.1.7)
+INSERT INTO SISTEMA_UNIVERSITARIO.CARRERA (ID_CARRERA, ID_FACULTAD, ID_DOCENTE, NOMBRE_CARRERA, NIVEL_CARRERA, MODALIDAD_CARRERA, DURACION_SEMESTRES ) 
+VALUES (1001, "Facultad de Ciencias", "1010", "MATEMATICAS", "GRADO", NULL, 9)
+
+------------------------------------------------------------------------------------------------------
+-- Cada carrera tiene una MALLA CURRICULAR versionada por cohorte (violación de 2.1.8)
+INSERT INTO SISTEMA_UNIVERSITARIO.MALLA_CURRICULAR (ID_MALLA, ID_CARRERA, DESCRIPCION)
+VALUES (NULL, 9801, 'Malla sin cohorte especificado');
+ 
+
+------------------------------------------------------------------------------------------------------
+-- Reglas sobre asignaturas y mallas curriculares
+------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
+ -- Cada asignatura tiene: código único, nombre, número de créditos, tipo (violación de 2.2.1)
+ INSERT INTO SISTEMA_UNIVERSITARIO.ASIGNATURA (ID_ASIGNATURA, CODIGO_ASIGNATURA, NOMBRE_ASIGNATURA, NUMERO_CREDITOS, TIPO_ASIGNATURA, AREA_CONOCIMIENTO)
+ VALUES (NULL, "4007", "Redes y Conectividad", 3, "DE CARRERA", "INFORMATICA")
+
+ INSERT INTO SISTEMA_UNIVERSITARIO.ASIGNATURA (ID_ASIGNATURA, CODIGO_ASIGNATURA, NOMBRE_ASIGNATURA, NUMERO_CREDITOS, TIPO_ASIGNATURA, AREA_CONOCIMIENTO)
+ VALUES ("4001", "4007", NULL, 3, "DE CARRERA", "INFORMATICA")
+
+------------------------------------------------------------------------------------------------------
+-- Tipos de asignatura: OBLIGATORIA, OPTATIVA, LIBRE_ELECCIÓN(violación de 2.2.2)
+INSERT INTO SISTEMA_UNIVERSITARIO.ASIGNATURA (ID_ASIGNATURA, CODIGO_ASIGNATURA, NOMBRE_ASIGNATURA, NUMERO_CREDITOS, TIPO_ASIGNATURA, AREA_CONOCIMIENTO)
+ VALUES ("4001", "4007", "Sistemas Operativos", 3, NULL, "INFORMATICA")
+
+------------------------------------------------------------------------------------------------------
+-- Una asignatura puede tener PRERREQUISITOS (violación de 2.2.3)
+INSERT INTO SISTEMA_UNIVERSITARIO.TIENE_PRERREQUISITO (ASI_ID_ASIGNATURA, ID_ASIGNATURA)
+VALUES (9999, 8888); -- 8888 no existe en ASIGNATURA
+
+------------------------------------------------------------------------------------------------------
+-- Una asignatura puede tener CORREQUISITOS (violación de 2.2.4)
+INSERT INTO SISTEMA_UNIVERSITARIO.CORREQUISITO (ASI_ID_ASIGNATURA, ID_ASIGNATURA)
+VALUES(1001, NULL);
+
+------------------------------------------------------------------------------------------------------
+-- El prerrequisito puede ser: asignatura específica OR aprobación de N créditos en el área (violación de 2.2.5)
+-- Un estudiante se matricula en una materia sin haber aprobado la asignatura prerrequisito
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA 
+(ID_MATRICULA, ID_ESTUDIANTE, ID_PERIODO, FECHA_REGISTRO, FORMA_MATRICULA)
+VALUES (90001, 400, 20241, SYSDATE, 'PRESENCIAL');
+-- Si 3001 es OPTATIVA pero si en la malla esta como OBLIGATORIA ocurre la violacion
+
+------------------------------------------------------------------------------------------------------
+-- Las asignaturas OBLIGATORIAS son iguales para todos los estudiantes de la carrera-cohorte (violación de 2.2.6)
+INSERT INTO SISTEMA_UNIVERSITARIO.DETALLE_MALLA (ID_ASIGNATURA, ID_MALLA, SEMESTRE_SUGERIDO, HORAS_TEORICAS, HORAS_PRACTICAS)
+VALUES (3001, 4001, 1, 40, 0);
+
+------------------------------------------------------------------------------------------------------
+-- Las asignaturas OPTATIVAS: el estudiante debe elegir M asignaturas de un grupo de N opciones (violación de 2.2.7)
+INSERT INTO SISTEMA_UNIVERSITARIO.DETALLE_MALLA (ID_ASIGNATURA, ID_MALLA, SEMESTRE_SUGERIDO, HORAS_TEORICAS, HORAS_PRACTICAS)
+VALUES (3001, 4001, 1, 40, 0);
+
+------------------------------------------------------------------------------------------------------
+-- Las asignaturas de LIBRE_ELECCIÓN: el estudiante puede elegir cualquiera de otras carreras (violación de 2.2.8)
+INSERT INTO SISTEMA_UNIVERSITARIO.DETALLE_MALLA (ID_ASIGNATURA, ID_MALLA, SEMESTRE_SUGERIDO, HORAS_TEORICAS, HORAS_PRACTICAS)
+VALUES (3001, 4001, 1, 40, 0);
+
+------------------------------------------------------------------------------------------------------
+-- Una malla curricular define: carrera, año de vigencia, semestres, asignaturas por semestre (violación de 2.2.9)
+INSERT INTO SISTEMA_UNIVERSITARIO.MALLA_CURRICULAR (	ID_MALLA, ID_CARRERA, CODIGO_COHORTE, FECHA_APROBACION, TOTAL_CREDITOS, ESTADO_MALLA)
+VALUES (3001, NULL, 1, 40, 0); --No existe carrera
+
+INSERT INTO SISTEMA_UNIVERSITARIO.MALLA_CURRICULAR (	ID_MALLA, ID_CARRERA, CODIGO_COHORTE, FECHA_APROBACION, TOTAL_CREDITOS, ESTADO_MALLA)
+VALUES (3001, 4001, 1, 40, NULL); --No existe fecha de vigencia
+
+
+------------------------------------------------------------------------------------------------------
+-- Cada asignatura en la malla tiene: semestre recomendado, horas teóricas, horas prácticas (violación de 2.2.10)
+INSERT INTO SISTEMA_UNIVERSITARIO.DETALLE_MALLA (ID_ASIGNATURA, ID_MALLA, SEMESTRE_SUGERIDO, HORAS_TEORICAS, HORAS_PRACTICAS)
+VALUES (2001, 7000, 0, 40, 0);
+
+
+------------------------------------------------------------------------------------------------------
+-- El total de créditos para TÉCNICO: mínimo 120, TECNOLÓGICO: 180, GRADO: 240, POSGRADO: depende del programa (violación de 2.2.11)
+INSERT INTO SISTEMA_UNIVERSITARIO.MALLA_CURRICULAR (ID_MALLA, ID_CARRERA, CODIGO_COHORTE, FECHA_APROBACION, TOTAL_CREDITOS, ESTADO_MALLA)
+VALUES (8000, 300, '2025-B', TO_DATE('2025-02-01','YYYY-MM-DD'), 200, 'ACTIVA');
+
+------------------------------------------------------------------------------------------------------
+-- Reglas sobre personal docente
+------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
+-- Cada docente tiene: código único, cédula, nombres, apellidos, email institucional, fecha de ingreso (violación de 2.3.12)
+INSERT INTO SISTEMA_UNIVERSITARIO.DOCENTE (
+  ID_DOCENTE, ID_FACULTAD, ID_CARRERA, NUMERO_UNICO, CEDULA, NOMBRES_DOCENTE, APELLIDOS_DOCENTE, EMAIL_INSTITUCIONAL, TIPO_PROFESOR, CATEGORIA_DOCENTE, FECHA_INGRESO
+) VALUES (
+  9001, NULL, NULL, 'DOC100', '0102030405', 'Ana', 'Pérez', 'ana.perez@epn.edu.ec', 'HONORARIOS', 'AUXILIAR', TO_DATE('2019-03-01','YYYY-MM-DD')
+);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.DOCENTE (
+  ID_DOCENTE, ID_FACULTAD, ID_CARRERA, NUMERO_UNICO, CEDULA, NOMBRES_DOCENTE, APELLIDOS_DOCENTE, EMAIL_INSTITUCIONAL, TIPO_PROFESOR, CATEGORIA_DOCENTE, FECHA_INGRESO
+) VALUES (
+  9002, NULL, NULL, 'DOC100', '0203040506', 'Luis', 'Gómez', 'luis.gomez@epn.edu.ec', 'HONORARIOS', 'AUXILIAR', TO_DATE('2020-08-15','YYYY-MM-DD')
+);
+
+------------------------------------------------------------------------------------------------------
+-- Tipos de dedicación: TIEMPO_COMPLETO (40 horas/semana), MEDIO_TIEMPO (20 horas), HONORARIOS (por horas), (violación de 2.3.13)
+INSERT INTO SISTEMA_UNIVERSITARIO.DOCENTE (
+  ID_DOCENTE, ID_FACULTAD, ID_CARRERA, NUMERO_UNICO, CEDULA, NOMBRES_DOCENTE, APELLIDOS_DOCENTE, EMAIL_INSTITUCIONAL, TIPO_PROFESOR, CATEGORIA_DOCENTE, FECHA_INGRESO
+) VALUES (
+  9003, NULL, NULL, 'DOC101', '0304050607', 'María', 'Rojas', 'maria.rojas@epn.edu.ec', 'JORNADA_COMPLETA_INEXISTENTE', 'AUXILIAR', TO_DATE('2021-01-10','YYYY-MM-DD')
+);
+
+------------------------------------------------------------------------------------------------------
+-- Categoría académica: TITULAR (PhD + 10 años experiencia), AGREGADO (PhD + 5 años), AUXILIAR (Maestría), (violación de 2.3.14)
+INSERT INTO SISTEMA_UNIVERSITARIO.DOCENTE (
+  ID_DOCENTE, ID_FACULTAD, ID_CARRERA, NUMERO_UNICO, CEDULA, NOMBRES_DOCENTE, APELLIDOS_DOCENTE, EMAIL_INSTITUCIONAL, TIPO_PROFESOR, CATEGORIA_DOCENTE, FECHA_INGRESO
+) VALUES (
+  9004, NULL, NULL, 'DOC102', '0405060708', 'Carlos', 'Méndez', 'carlos.mendez@epn.edu.ec', 'TIEMPO_COMPLETO', 'TITULAR', TO_DATE('2023-02-01','YYYY-MM-DD')
+);
+
+------------------------------------------------------------------------------------------------------
+-- Un docente puede tener MÚLTIPLES títulos registrados: nivel (Grado, Maestría, PhD), área, universidad, año (violación de 2.3.15)
+INSERT INTO SISTEMA_UNIVERSITARIO.TITULO_ACADEMICO (
+  ID_TITULO, ID_DOCENTE, NOMBRE_TITULO, NIVEL_TITULO, UNIVERSIDAD
+) VALUES (
+  7001, 9005, 'Título inventado', 'SIN_NIVEL', 'Universidad XD'
+);
+
+------------------------------------------------------------------------------------------------------
+-- La carga horaria se distribuye en: DOCENCIA, INVESTIGACIÓN, GESTIÓN (coordinaciones), VINCULACIÓN (violación de 2.3.16)
+CREATE TABLE SISTEMA_UNIVERSITARIO.CARGA_HORARIA_DOCENTE (
+  ID_CARGA NUMBER,
+  ID_DOCENTE NUMBER,
+  PORC_DOCENCIA NUMBER,
+  PORC_INVESTIGACION NUMBER,
+  PORC_GESTION NUMBER,
+  PORC_VINCULACION NUMBER,
+  CONSTRAINT PK_CARGA PRIMARY KEY (ID_CARGA)
+);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.CARGA_HORARIA_DOCENTE (ID_CARGA, ID_DOCENTE, PORC_DOCENCIA, PORC_INVESTIGACION, PORC_GESTION, PORC_VINCULACION)
+VALUES (8001, 9001, 120, 80, 30, 20);
+
+------------------------------------------------------------------------------------------------------
+-- Docentes TIEMPO_COMPLETO: mínimo 50% docencia, resto distribuido (violación de 2.3.17)
+INSERT INTO SISTEMA_UNIVERSITARIO.CARGA_HORARIA_DOCENTE (ID_CARGA, ID_DOCENTE, PORC_DOCENCIA, PORC_INVESTIGACION, PORC_GESTION, PORC_VINCULACION)
+VALUES (8002, 9004, 30, 50, 10, 10);
+
+------------------------------------------------------------------------------------------------------
+-- Docentes MEDIO_TIEMPO: 80% docencia, 20% investigación/gestión (violación de 2.3.18)
+INSERT INTO SISTEMA_UNIVERSITARIO.DOCENTE (
+  ID_DOCENTE, NUMERO_UNICO, CEDULA, NOMBRES_DOCENTE, APELLIDOS_DOCENTE, EMAIL_INSTITUCIONAL, TIPO_PROFESOR, CATEGORIA_DOCENTE, FECHA_INGRESO
+) VALUES (
+  9006, 'DOC104', '0607080910', 'Pedro', 'Salas', 'pedro.salas@epn.edu.ec', 'MEDIO_TIEMPO', 'AUXILIAR', TO_DATE('2020-09-10','YYYY-MM-DD')
+);
+
+------------------------------------------------------------------------------------------------------
+-- Docentes HONORARIOS: 100% docencia (violación de 2.3.19)
+INSERT INTO SISTEMA_UNIVERSITARIO.DOCENTE (
+  ID_DOCENTE, NUMERO_UNICO, CEDULA, NOMBRES_DOCENTE, APELLIDOS_DOCENTE, EMAIL_INSTITUCIONAL, TIPO_PROFESOR, CATEGORIA_DOCENTE, FECHA_INGRESO
+) VALUES (
+  9007, 'DOC105', '0708091011', 'Lucía', 'Vargas', 'lucia.vargas@epn.edu.ec', 'HONORARIOS', 'AUXILIAR', TO_DATE('2022-03-20','YYYY-MM-DD')
+);
+
+------------------------------------------------------------------------------------------------------
+-- La carga de docencia se mide en horas semanales por período académico (violación de 2.3.20)
+INSERT INTO SISTEMA_UNIVERSITARIO.OFERTA_ASIGNATURA (ID_OFERTA, ID_PERIODO, ID_ASIGNATURA, ID_DOCENTE, CODIGO_PARALELO, CUPO_MAXIMO, CUPO_DISPONIBLE)
+VALUES (6001, 1, 101, 9001, 'A', 30, 30);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.HORARIO_CLASE (ID_HORARIO, ID_OFERTA, DIA_SEMANA, HORA_INICIO, HORA_FIN, ID_AULA)
+VALUES (5001, 6001, 'LUNES', TO_DATE('08:00','HH24:MI'), TO_DATE('07:00','HH24:MI'), 10);
+
+------------------------------------------------------------------------------------------------------
+-- Un docente NO puede tener más de 20 horas de clase por semana (TIEMPO_COMPLETO), (violación de 2.3.21)
+INSERT INTO SISTEMA_UNIVERSITARIO.DOCENTE (
+  ID_DOCENTE, NUMERO_UNICO, CEDULA, NOMBRES_DOCENTE, APELLIDOS_DOCENTE, EMAIL_INSTITUCIONAL, TIPO_PROFESOR, CATEGORIA_DOCENTE, FECHA_INGRESO
+) VALUES (
+  9008, 'DOC106', '0809101112', 'Roberto', 'Quispe', 'roberto.quispe@epn.edu.ec', 'TIEMPO_COMPLETO', 'AGREGADO', TO_DATE('2010-05-01','YYYY-MM-DD')
+);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.OFERTA_ASIGNATURA (ID_OFERTA, ID_PERIODO, ID_ASIGNATURA, ID_DOCENTE, CODIGO_PARALELO, CUPO_MAXIMO, CUPO_DISPONIBLE)
+VALUES (6003, 1, 103, 9008, 'A', 35, 35);
+
+------------------------------------------------------------------------------------------------------
+-- Un docente puede impartir asignaturas de MÚLTIPLES carreras en el mismo período (violación de 2.3.22)
+INSERT INTO SISTEMA_UNIVERSITARIO.OFERTA_ASIGNATURA (ID_OFERTA, ID_PERIODO, ID_ASIGNATURA, ID_DOCENTE, CODIGO_PARALELO, CUPO_MAXIMO, CUPO_DISPONIBLE)
+VALUES (6006, 1, 201, 9002, 'A', 30, 30);
+
+------------------------------------------------------------------------------------------------------
+-- Reglas sobre estudiantes
+------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
+-- Cada estudiante tiene: matrícula única, cédula, nombres, apellidos, email institucional, fecha de ingreso (violación de 2.4.23)
+INSERT INTO SISTEMA_UNIVERSITARIO.ESTUDIANTE (
+  ID_ESTUDIANTE, MATRICULA, CEDULA, NOMBRES, APELLIDOS, EMAIL_INSTITUCIONAL, FECHA_INGRESO, ID_CARRERA, ESTADO_ESTUDIANTE, TIPO_ESTUDIANTE, GPA
+) VALUES (
+  10001, 'MATR-2025001', '1701234567', 'Andrés', 'Paredes', 'andres.paredes@epn.edu.ec', TO_DATE('2023-03-01','YYYY-MM-DD'), 101, 'ACTIVO', 'REGULAR', 8.2
+);
+-- Insertamos otro estudiante con la *misma* matrícula -> violación regla 23
+INSERT INTO SISTEMA_UNIVERSITARIO.ESTUDIANTE (
+  ID_ESTUDIANTE, MATRICULA, CEDULA, NOMBRES, APELLIDOS, EMAIL_INSTITUCIONAL, FECHA_INGRESO, ID_CARRERA, ESTADO_ESTUDIANTE, TIPO_ESTUDIANTE, GPA
+) VALUES (
+  10002, 'MATR-2025001', '1802345678', 'Beatriz', 'Flores', 'beatriz.flores@epn.edu.ec', TO_DATE('2024-02-15','YYYY-MM-DD'), 102, 'ACTIVO', 'REGULAR', 7.5
+);
+
+------------------------------------------------------------------------------------------------------
+-- Un estudiante pertenece a UNA carrera principal (puede estar en doble titulación con dos carreras) (violación de 2.4.24)
+INSERT INTO SISTEMA_UNIVERSITARIO.ESTUDIANTE (
+  ID_ESTUDIANTE, MATRICULA, CEDULA, NOMBRES, APELLIDOS, EMAIL_INSTITUCIONAL, FECHA_INGRESO, ID_CARRERA, ESTADO_ESTUDIANTE, TIPO_ESTUDIANTE, GPA
+) VALUES (
+  10003, 'MATR-2025003', '1903456789', 'Carlos', 'Ramos', 'carlos.ramos@epn.edu.ec', TO_DATE('2024-08-01','YYYY-MM-DD'), NULL, 'ACTIVO', 'ESPECIAL', 6.8
+);
+
+------------------------------------------------------------------------------------------------------
+-- Estados del estudiante: ACTIVO, INACTIVO (suspensión temporal), GRADUADO, RETIRADO, SUSPENDIDO (sanción) (violación de 2.4.25)
+INSERT INTO SISTEMA_UNIVERSITARIO.ESTUDIANTE (
+  ID_ESTUDIANTE, MATRICULA, CEDULA, NOMBRES, APELLIDOS, EMAIL_INSTITUCIONAL, FECHA_INGRESO, ID_CARRERA, ESTADO_ESTUDIANTE, TIPO_ESTUDIANTE, GPA
+) VALUES (
+  10004, 'MATR-2025004', '1712345670', 'Diana', 'Molina', 'diana.molina@epn.edu.ec', TO_DATE('2022-01-10','YYYY-MM-DD'), 103, 'PENDIENTE', 'REGULAR', 7.9
+);
+
+------------------------------------------------------------------------------------------------------
+-- Tipos de estudiante: REGULAR (cumple requisitos académicos), ESPECIAL (cursa asignaturas sin carrera), OYENTE (solo asiste) violación de 2.4.26)
+INSERT INTO SISTEMA_UNIVERSITARIO.ESTUDIANTE (
+  ID_ESTUDIANTE, MATRICULA, CEDULA, NOMBRES, APELLIDOS, EMAIL_INSTITUCIONAL, FECHA_INGRESO, ID_CARRERA, ESTADO_ESTUDIANTE, TIPO_ESTUDIANTE, GPA
+) VALUES (
+  10005, 'MATR-2025005', '1723456781', 'Elena', 'Suárez', 'elena.suarez@epn.edu.ec', TO_DATE('2021-07-20','YYYY-MM-DD'), 101, 'ACTIVO', 'INTERINO', 8.0
+);
+
+------------------------------------------------------------------------------------------------------
+-- Un estudiante REGULAR debe mantener promedio  7.0 para continuar activo (violación de 2.4.27) 
+INSERT INTO SISTEMA_UNIVERSITARIO.ESTUDIANTE (
+  ID_ESTUDIANTE, MATRICULA, CEDULA, NOMBRES, APELLIDOS, EMAIL_INSTITUCIONAL, FECHA_INGRESO, ID_CARRERA, ESTADO_ESTUDIANTE, TIPO_ESTUDIANTE, GPA
+) VALUES (
+  10006, 'MATR-2025006', '1734567892', 'Fernando', 'Castillo', 'fernando.castillo@epn.edu.ec', TO_DATE('2020-02-01','YYYY-MM-DD'), 101, 'ACTIVO', 'REGULAR', 6.30
+);
+
+------------------------------------------------------------------------------------------------------
+-- Estudiantes con promedio < 7.0 en dos períodos consecutivos pasan a SUSPENDIDO (violación de 2.4.28)
+INSERT INTO SISTEMA_UNIVERSITARIO.HISTORIAL_ACADEMICO (ID_HISTORIAL, ID_ESTUDIANTE, ID_PERIODO, ID_ASIGNATURA, NOTA_DEFINITIVA, ESTADO_MATERIA)
+VALUES (21001, 10007, 20241, 301, 6.5, 'REPROBADO');
+
+    -- Período 20242: promedio 6.0
+INSERT INTO SISTEMA_UNIVERSITARIO.HISTORIAL_ACADEMICO (ID_HISTORIAL, ID_ESTUDIANTE, ID_PERIODO, ID_ASIGNATURA, NOTA_DEFINITIVA, ESTADO_MATERIA)
+VALUES (21002, 10007, 20242, 302, 6.0, 'REPROBADO');
+
+    -- Pero el alumno 10007 aparece como ACTIVO (violación): insertamos su registro ACTIVO
+INSERT INTO SISTEMA_UNIVERSITARIO.ESTUDIANTE (
+  ID_ESTUDIANTE, MATRICULA, CEDULA, NOMBRES, APELLIDOS, EMAIL_INSTITUCIONAL, FECHA_INGRESO, ID_CARRERA, ESTADO_ESTUDIANTE, TIPO_ESTUDIANTE, GPA
+) VALUES (
+  10007, 'MATR-2025007', '1745678903', 'Gabriela', 'Navarro', 'gabriela.navarro@epn.edu.ec', TO_DATE('2019-03-15','YYYY-MM-DD'), 102, 'ACTIVO', 'REGULAR', 6.25
+);
+
+------------------------------------------------------------------------------------------------------
+-- Un estudiante puede tener BECAS: MÉRITO_ACADÉMICO (promedio  9.0), SOCIOECONÓMICA (nivel económico), DEPORTIVA, CULTURAL (violación de 2.4.29)
+INSERT INTO SISTEMA_UNIVERSITARIO.ESTUDIANTE_BECAS (
+  ID_BECAS, ID_ESTUDIANTE, TIPO_BECA, PORC_MATRICULA, PORC_COLEGIATURA, MONTO_ALIMENTACION, FECHA_INICIO, FECHA_FIN
+) VALUES (
+  40001, 10006, 'MERITO_ACADEMICO', 50, 50, 100, TO_DATE('2025-01-01','YYYY-MM-DD'), TO_DATE('2025-12-31','YYYY-MM-DD')
+);
+
+------------------------------------------------------------------------------------------------------
+-- La beca cubre: matrícula (%), colegiatura (%), alimentación (monto mensual) (violación de 2.4.30)
+INSERT INTO SISTEMA_UNIVERSITARIO.ESTUDIANTE_BECAS (
+  ID_BECAS, ID_ESTUDIANTE, TIPO_BECA, PORC_MATRICULA, PORC_COLEGIATURA, MONTO_ALIMENTACION, FECHA_INICIO, FECHA_FIN
+) VALUES (
+  40002, 10008, 'SOCIOECONOMICA', -10, 20, 50, TO_DATE('2025-02-01','YYYY-MM-DD'), TO_DATE('2025-07-31','YYYY-MM-DD')
+);
+
+------------------------------------------------------------------------------------------------------
+-- Un estudiante puede tener MÚLTIPLES becas simultáneas (los porcentajes se suman hasta 100%) (violación de 2.4.31)
+INSERT INTO SISTEMA_UNIVERSITARIO.ESTUDIANTE_BECAS (
+  ID_BECAS, ID_ESTUDIANTE, TIPO_BECA, PORC_MATRICULA, PORC_COLEGIATURA, MONTO_ALIMENTACION, FECHA_INICIO, FECHA_FIN
+) VALUES (
+  40004, 10009, 'SOCIOECONOMICA', 50, 0, 0, TO_DATE('2025-03-01','YYYY-MM-DD'), TO_DATE('2025-12-31','YYYY-MM-DD')
+);
+
+------------------------------------------------------------------------------------------------------
+-- Se registra el historial académico completo: período, asignatura, docente, calificación final (violación de 2.4.32)
+INSERT INTO SISTEMA_UNIVERSITARIO.HISTORIAL_ACADEMICO (
+  ID_HISTORIAL, ID_ESTUDIANTE, ID_PERIODO, ID_ASIGNATURA, ID_DOCENTE, NOTA_DEFINITIVA, ESTADO_MATERIA
+) VALUES (
+  21010, 10010, NULL, 401, NULL, 8.5, 'APROBADO'
+);
+
+------------------------------------------------------------------------------------------------------
+-- Cada estudiante tiene un GPA (Grade Point Average) (violación de 2.4.33)
+INSERT INTO SISTEMA_UNIVERSITARIO.HISTORIAL_ACADEMICO (ID_HISTORIAL, ID_ESTUDIANTE, ID_PERIODO, ID_ASIGNATURA, NOTA_DEFINITIVA, ESTADO_MATERIA)
+VALUES (21101, 10011, 20241, 501, 9.0, 'APROBADO');
+
+INSERT INTO SISTEMA_UNIVERSITARIO.HISTORIAL_ACADEMICO (ID_HISTORIAL, ID_ESTUDIANTE, ID_PERIODO, ID_ASIGNATURA, NOTA_DEFINITIVA, ESTADO_MATERIA)
+VALUES (21102, 10011, 20241, 502, 7.0, 'APROBADO'); 
+
+------------------------------------------------------------------------------------------------------
+-- Reglas sobre gestion academica
+------------------------------------------------------------------------------------------------------
+--------------------------------- ---------------------------------------------------------------------
+-- El año académico se divide en PERÍODOS: dos semestres ordinarios (sept-feb, marzo-julio) y uno intensivo (agosto) (violación de 2.5.34)
+INSERT INTO SISTEMA_UNIVERSITARIO.PERIODO_ACADEMICO
+(ID_PERIODO, FECHA_INICIO, FECHA_FIN, ESTADO)
+VALUES (3001, DATE '2025-04-01', DATE '2025-12-31', 'PLANIFICACION');
+
+------------------------------------------------------------------------------------------------------
+-- Cada período académico tiene: código, nombre, fecha inicio, fecha fin, estado (PLANIFICACIÓN, MATRÍCULA, EN_CURSO, FINALIZADO) (violación de 2.5.35)
+INSERT INTO SISTEMA_UNIVERSITARIO.PERIODO_ACADEMICO
+(ID_PERIODO, FECHA_INICIO, FECHA_FIN, ESTADO)
+VALUES (3001, DATE '2025-04-01', DATE '2025-12-31', 'PLANIFICACION');
+
+------------------------------------------------------------------------------------------------------
+-- Durante PLANIFICACIÓN se asignan: asignaturas, docentes, horarios, aulas (violación de 2.5.36)
+    -- Período en curso
+INSERT INTO SISTEMA_UNIVERSITARIO.PERIODO_ACADEMICO
+(ID_PERIODO, FECHA_INICIO, FECHA_FIN, ESTADO)
+VALUES (3003, DATE '2025-03-01', DATE '2025-07-30', 'EN_CURSO');
+
+    -- Se asigna una oferta (solo permitido en PLANIFICACIÓN)
+INSERT INTO SISTEMA_UNIVERSITARIO.OFERTA_ASIGNATURA
+(ID_OFERTA, ID_PERIODO, ID_ASIGNATURA, ID_DOCENTE, CODIGO_PARALELO, CUPO_MAXIMO, CUPO_DISPONIBLE)
+VALUES (8001, 3003, 101, 9001, 'A', 30, 30);
+
+------------------------------------------------------------------------------------------------------
+-- Una asignatura se oferta en PARALELOS (grupos) identificados por letra: A, B, C, etc. (violación de 2.5.37)
+INSERT INTO SISTEMA_UNIVERSITARIO.OFERTA_ASIGNATURA
+(ID_OFERTA, ID_PERIODO, ID_ASIGNATURA, ID_DOCENTE, CODIGO_PARALELO, CUPO_MAXIMO, CUPO_DISPONIBLE)
+VALUES (8002, 3003, 101, 9001, 'ZZ', 30, 30);
+
+------------------------------------------------------------------------------------------------------
+-- Cada paralelo tiene: cupo máximo (25-40 estudiantes según asignatura), docente asignado, horario (violación de 2.5.38)
+INSERT INTO SISTEMA_UNIVERSITARIO.OFERTA_ASIGNATURA
+(ID_OFERTA, ID_PERIODO, ID_ASIGNATURA, ID_DOCENTE, CODIGO_PARALELO, CUPO_MAXIMO, CUPO_DISPONIBLE)
+VALUES (8003, 3003, 102, 9001, 'B', 10, 10); -- cupo 10 < 25
+
+------------------------------------------------------------------------------------------------------
+-- El horario especifica: día de la semana, hora inicio, hora fin, aula (violación de 2.5.39)
+INSERT INTO SISTEMA_UNIVERSITARIO.HORARIO_CLASE
+(ID_HORARIO, ID_OFERTA, DIA_SEMANA, HORA_INICIO, HORA_FIN, ID_AULA)
+VALUES (9001, 8001, 'LUNES', TO_DATE('10:00','HH24:MI'), TO_DATE('09:00','HH24:MI'), 10);
+
+------------------------------------------------------------------------------------------------------
+-- NO puede haber dos paralelos de diferentes asignaturas en la misma aula al mismo tiempo (violación de 2.5.40)
+-- Paralelo 1
+INSERT INTO SISTEMA_UNIVERSITARIO.HORARIO_CLASE
+(ID_HORARIO, ID_OFERTA, DIA_SEMANA, HORA_INICIO, HORA_FIN, ID_AULA)
+VALUES (9002, 8001, 'MARTES', TO_DATE('08:00','HH24:MI'), TO_DATE('10:00','HH24:MI'), 20);
+
+    -- Paralelo 2 diferente pero mismo horario y aula
+INSERT INTO SISTEMA_UNIVERSITARIO.HORARIO_CLASE
+(ID_HORARIO, ID_OFERTA, DIA_SEMANA, HORA_INICIO, HORA_FIN, ID_AULA)
+VALUES (9003, 8002, 'MARTES', TO_DATE('09:00','HH24:MI'), TO_DATE('11:00','HH24:MI'), 20);
+
+------------------------------------------------------------------------------------------------------
+-- Un docente NO puede tener dos clases simultáneas (violación de 2.5.41)
+INSERT INTO SISTEMA_UNIVERSITARIO.OFERTA_ASIGNATURA (ID_OFERTA, ID_PERIODO, ID_ASIGNATURA, ID_DOCENTE, CODIGO_PARALELO, CUPO_MAXIMO, CUPO_DISPONIBLE)
+VALUES (70005, 9992, 703, 9008, 'A', 30, 30);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.HORARIO_CLASE (ID_HORARIO, ID_OFERTA, DIA_SEMANA, HORA_INICIO, HORA_FIN, ID_AULA)
+VALUES (80004, 70005, 'MARTES', TO_DATE('08:00','HH24:MI'), TO_DATE('10:00','HH24:MI'), 25);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.OFERTA_ASIGNATURA (ID_OFERTA, ID_PERIODO, ID_ASIGNATURA, ID_DOCENTE, CODIGO_PARALELO, CUPO_MAXIMO, CUPO_DISPONIBLE)
+VALUES (70006, 9992, 704, 9008, 'B', 30, 30);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.HORARIO_CLASE (ID_HORARIO, ID_OFERTA, DIA_SEMANA, HORA_INICIO, HORA_FIN, ID_AULA)
+VALUES (80005, 70006, 'MARTES', TO_DATE('09:30','HH24:MI'), TO_DATE('11:30','HH24:MI'), 26);
+
+------------------------------------------------------------------------------------------------------
+-- Un estudiante NO puede matricularse en asignaturas con horarios que se crucen (violación de 2.5.42)
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA)
+VALUES (60001, 50001, 70005);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA)
+VALUES (60002, 50001, 70006);
+
+
+------------------------------------------------------------------------------------------------------
+-- Durante MATRÍCULA, el estudiante se inscribe en las asignaturas del período (violación de 2.5.43)
+INSERT INTO SISTEMA_UNIVERSITARIO.PERIODO (ID_PERIODO, NOMBRE_PERIODO, FECHA_INICIO, FECHA_FIN, ESTADO_PERIODO)
+VALUES (9993, '2025-INTENSIVO', TO_DATE('2025-08-01','YYYY-MM-DD'), TO_DATE('2025-08-31','YYYY-MM-DD'), 'EN_CURSO');
+
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA (ID_MATRICULA, ID_ESTUDIANTE, ID_PERIODO, FECHA_REGISTRO)
+VALUES (50002, 10011, 9993, SYSDATE);
+
+------------------------------------------------------------------------------------------------------
+-- Un estudiante NO puede matricularse en una asignatura si no ha aprobado los prerrequisitos (violación de 2.5.44)
+INSERT INTO SISTEMA_UNIVERSITARIO.TIENE_PRERREQUISITO (ID, ASIG_ID, PREREQ_ID)
+VALUES (81001, 801, 701);
+
+-- Matricular estudiante 10012 en asignatura 801 sin haber aprobado 701
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA)
+VALUES (60003, 50002, 70007);
+
+------------------------------------------------------------------------------------------------------
+-- Carga académica normal: 5-6 asignaturas por semestre (18-24 créditos) (violación de 2.5.45)
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA (ID_MATRICULA, ID_ESTUDIANTE, ID_PERIODO, FECHA_REGISTRO)
+VALUES (50003, 10013, 20251, SYSDATE);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (61001,50003,70010);
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (61002,50003,70011);
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (61003,50003,70012);
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (61004,50003,70013);
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (61005,50003,70014);
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (61006,50003,70015);
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (61007,50003,70016);
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (61008,50003,70017);
+
+------------------------------------------------------------------------------------------------------
+-- Carga máxima permitida: 7 asignaturas (28 créditos) solo con promedio  8.0 (violación de 2.5.46)
+INSERT INTO SISTEMA_UNIVERSITARIO.ESTUDIANTE (ID_ESTUDIANTE, MATRICULA, CEDULA, NOMBRES, APELLIDOS, EMAIL_INSTITUCIONAL, FECHA_INGRESO, ESTADO, TIPO_ESTUDIANTE, PROMEDIO_ACTUAL)
+VALUES (10014, 'M2025011', '1213141516', 'Gina', 'Paredes', 'gina.paredes@uni.edu', TO_DATE('2019-09-09','YYYY-MM-DD'), 'ACTIVO', 'REGULAR', 7.5);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA (ID_MATRICULA, ID_ESTUDIANTE, ID_PERIODO, FECHA_REGISTRO)
+VALUES (50004, 10014, 20251, SYSDATE);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (62001,50004,70020);
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (62002,50004,70021);
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (62003,50004,70022);
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (62004,50004,70023);
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (62005,50004,70024);
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (62006,50004,70025);
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA) VALUES (62007,50004,70026);
+
+------------------------------------------------------------------------------------------------------
+-- Se registra la ASISTENCIA de estudiantes por cada clase (violación de 2.5.47)
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA (ID_MATRICULA, ID_ESTUDIANTE, ID_PERIODO, FECHA_REGISTRO)
+VALUES (50005, 10015, 20251, SYSDATE);
+
+------------------------------------------------------------------------------------------------------
+-- Asistencia mínima requerida: 75% de las clases para aprobar la asignatura (violación de 2.5.48)
+INSERT INTO SISTEMA_UNIVERSITARIO.ASISTENCIA (ID_ASISTENCIA, ID_MATRICULA, ID_OFERTA, PORC_ASISTENCIA)
+VALUES (90001, 50005, 70020, 60);
+
+------------------------------------------------------------------------------------------------------
+-- Estudiantes con asistencia < 75% reprueban automáticamente (nota = 0) (violación de 2.5.49)
+INSERT INTO SISTEMA_UNIVERSITARIO.CALIFICACION (ID_CALIF, ID_MATRICULA, ID_OFERTA, NOTA_FINAL, TIPO_NOTA)
+VALUES (100001, 50005, 70020, 8.0, 'FINAL');
+
+------------------------------------------------------------------------------------------------------
+-- Reglas sobre evaluaciones y calicaciones
+------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
+-- Cada asignatura tiene evaluaciones: PARCIAL_1 (30%), PARCIAL_2 (30%), FINAL (40%) (violación de 2.6.50)
+INSERT INTO SISTEMA_UNIVERSITARIO.PONDERACIONES_EVALUACION (ID_PONDER, ID_ASIGNATURA, PARCIAL_1_PCT, PARCIAL_2_PCT, FINAL_PCT)
+VALUES (25001, 1001, 30, 20, 30);  
+
+------------------------------------------------------------------------------------------------------
+-- La nota mínima para aprobar una asignatura es 7.0 sobre 10 (violación de 2.6.51)
+INSERT INTO SISTEMA_UNIVERSITARIO.CALIFICACION (ID_CALIF, ID_MATRICULA, ID_OFERTA, NOTA_FINAL, ESTADO_FINAL, TIPO_NOTA)
+VALUES (25101, 51010, 70110, 7.0, 'REPROBADO', 'FINAL');
+
+------------------------------------------------------------------------------------------------------
+-- Un estudiante con nota < 7.0 en el examen FINAL puede rendir SUPLETORIO (violación de 2.6.52)
+INSERT INTO SISTEMA_UNIVERSITARIO.CALIFICACION (ID_CALIF, ID_MATRICULA, ID_OFERTA, NOTA_FINAL, ESTADO_FINAL, TIPO_NOTA)
+VALUES (25102, 51011, 70111, 8.2, 'APROBADO', 'FINAL');
+
+INSERT INTO SISTEMA_UNIVERSITARIO.CALIFICACION_SUPLETORIO (ID_SUPL, ID_CALIF, NOTA_SUPLETORIO, FECHA_SUPLETORIO)
+VALUES (25201, 25102, 7.0, SYSDATE);
+
+------------------------------------------------------------------------------------------------------
+-- El SUPLETORIO evalúa todo el contenido de la asignatura, ponderación 100% (violación de 2.6.53)
+INSERT INTO SISTEMA_UNIVERSITARIO.CALIFICACION_SUPLETORIO (ID_SUPL, ID_CALIF, NOTA_SUPLETORIO, OBSERVACIONES)
+VALUES (25202, 25103, 6.5, 'Aplicado solo sobre contenidos de PARCIAL_1');
+
+------------------------------------------------------------------------------------------------------
+-- Si después del SUPLETORIO la nota es < 7.0, el estudiante puede rendir MEJORAMIENTO (siguiente período) (violación de 2.6.54)
+INSERT INTO SISTEMA_UNIVERSITARIO.CALIFICACION (ID_CALIF, ID_MATRICULA, ID_OFERTA, NOTA_FINAL, ESTADO_FINAL, TIPO_NOTA)
+VALUES (25104, 51012, 70112, 6.4, 'REPROBADO', 'SUPLETORIO');
+
+INSERT INTO SISTEMA_UNIVERSITARIO.CALIFICACION_MEJORAMIENTO (ID_MEJ, ID_CALIF, NOTA_MEJORAMIENTO, FECHA_MEJORAMIENTO)
+VALUES (25301, 25104, 7.0, SYSDATE);
+
+------------------------------------------------------------------------------------------------------
+-- Durante el MEJORAMIENTO el estudiante debe asistir a clases (no paga matrícula extra) (violación de 2.6.55)
+INSERT INTO SISTEMA_UNIVERSITARIO.CALIFICACION_MEJORAMIENTO (ID_MEJ, ID_CALIF, NOTA_MEJORAMIENTO, FECHA_MEJORAMIENTO, ASISTIO)
+VALUES (25302, 25105, 6.8, SYSDATE, 'N');   
+
+------------------------------------------------------------------------------------------------------
+-- Máximo DOS intentos de MEJORAMIENTO, luego debe repetir la asignatura pagando (violación de 2.6.56)
+INSERT INTO SISTEMA_UNIVERSITARIO.CALIFICACION_MEJORAMIENTO (ID_MEJ, ID_CALIF, NOTA_MEJORAMIENTO, FECHA_MEJORAMIENTO)
+VALUES (25303, 25106, 6.1, TO_DATE('2024-09-01','YYYY-MM-DD'));
+INSERT INTO SISTEMA_UNIVERSITARIO.CALIFICACION_MEJORAMIENTO (ID_MEJ, ID_CALIF, NOTA_MEJORAMIENTO, FECHA_MEJORAMIENTO)
+VALUES (25304, 25106, 6.4, TO_DATE('2025-02-01','YYYY-MM-DD'));
+    -- Tercer intento → violación
+INSERT INTO SISTEMA_UNIVERSITARIO.CALIFICACION_MEJORAMIENTO (ID_MEJ, ID_CALIF, NOTA_MEJORAMIENTO, FECHA_MEJORAMIENTO)
+VALUES (25305, 25106, 7.0, TO_DATE('2025-08-01','YYYY-MM-DD'));
+
+------------------------------------------------------------------------------------------------------
+-- La nota máxima con SUPLETORIO o MEJORAMIENTO es 7.0 (nota mínima aprobatoria) (violación de 2.6.57)
+INSERT INTO SISTEMA_UNIVERSITARIO.CALIFICACION_SUPLETORIO (ID_SUPL, ID_CALIF, NOTA_SUPLETORIO, FECHA_SUPLETORIO)
+VALUES (25203, 25107, 8.0, SYSDATE);  
+
+INSERT INTO SISTEMA_UNIVERSITARIO.CALIFICACION_MEJORAMIENTO (ID_MEJ, ID_CALIF, NOTA_MEJORAMIENTO, FECHA_MEJORAMIENTO)
+VALUES (25306, 25108, 9.0, SYSDATE)
+
+------------------------------------------------------------------------------------------------------
+-- Las asignaturas reprobadas DEBEN repetirse antes de cursar asignaturas que las tengan como prerrequisito (violación de 2.6.58)
+INSERT INTO SISTEMA_UNIVERSITARIO.HISTORIAL_ACADEMICO (ID_HIST, ID_ESTUDIANTE, ID_PERIODO, ID_ASIGNATURA, NOTA_FINAL, ESTADO_MATERIA)
+VALUES (33101, 10150, 20241, 2001, 5.5, 'REPROBADO');
+
+INSERT INTO SISTEMA_UNIVERSITARIO.TIENE_PRERREQUISITO (ID, ASIG_ID, PREREQ_ID)
+VALUES (83001, 2002, 2001);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA (ID_MATRICULA, ID_ESTUDIANTE, ID_PERIODO, FECHA_REGISTRO)
+VALUES (52001, 10150, 20251, SYSDATE);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.MATRICULA_OFERTA (ID, ID_MATRICULA, ID_OFERTA)
+VALUES (73001, 52001, 70200);
+
+
+------------------------------------------------------------------------------------------------------
+-- Reglas sobre proceso de titulacion
+------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
+-- Para graduarse, el estudiante debe: aprobar TODAS las asignaturas de la malla, completar prácticas preprofesionales (480 horas) (violación de 2.7.59)
+INSERT INTO SISTEMA_UNIVERSITARIO.PROCESO_TITULACION (ID_TIT, ID_ESTUDIANTE, TIPO_TITULACION, ESTADO_PROCESO, HORAS_PRACTICAS, PROYECTO_ENTREGADO)
+VALUES (41001, 10200, 'TESIS', 'APROBADO', 300, 'S');
+
+------------------------------------------------------------------------------------------------------
+-- Opciones de titulación: TESIS (investigación original), PROYECTO_INTEGRADOR (aplicación práctica), EXAMEN_COMPLEXIVO (violación de 2.7.60)
+INSERT INTO SISTEMA_UNIVERSITARIO.PROCESO_TITULACION (ID_TIT, ID_ESTUDIANTE, TIPO_TITULACION, ESTADO_PROCESO)
+VALUES (41002, 10201, 'OTRA_MODALIDAD', 'EN_PROCESO');
+
+------------------------------------------------------------------------------------------------------
+-- Modalidad TESIS: requiere tutor (docente), revisión de pares, defensa pública (violación de 2.7.61)
+INSERT INTO SISTEMA_UNIVERSITARIO.TESIS (ID_TESIS, ID_TITULACION, ID_ESTUDIANTE, TITULO, TUTOR_DOCENTE_ID, REVISADO_PARES, FECHA_DEFENSA)
+VALUES (42001, 41003, 10300, 'Estudio X', NULL, 'N', NULL);
+
+------------------------------------------------------------------------------------------------------
+-- Modalidad PROYECTO_INTEGRADOR: tutor, presentación ante tribunal (violación de 2.7.62)
+INSERT INTO SISTEMA_UNIVERSITARIO.PROYECTO_INTEGRADOR (ID_PROY, ID_TITULACION, ID_ESTUDIANTE, TITULO, TUTOR_DOCENTE_ID, PRESENTADO_TRIBUNAL)
+VALUES (43001, 41004, 10301, 'Proyecto Y', 9001, 'N'); -- marcado luego como aprobado:
+UPDATE SISTEMA_UNIVERSITARIO.PROCESO_TITULACION SET ESTADO_PROCESO = 'APROBADO' WHERE ID_TIT = 41004;
+
+------------------------------------------------------------------------------------------------------
+-- Modalidad EXAMEN_COMPLEXIVO: examen escrito de 100 preguntas, 80% correcto para aprobar (violación de 2.7.63)
+INSERT INTO SISTEMA_UNIVERSITARIO.EXAMEN_COMPLEXIVO (ID_EXAM, ID_TITULACION, ID_ESTUDIANTE, TOTAL_PREGUNTAS, RESPUESTAS_CORRECTAS, PORC_ACIERTO)
+VALUES (44001, 41005, 10302, 100, 75, 75);
+
+INSERT INTO SISTEMA_UNIVERSITARIO.PROCESO_TITULACION (ID_TIT, ID_ESTUDIANTE, TIPO_TITULACION, ESTADO_PROCESO)
+VALUES (41005, 10302, 'EXAMEN_COMPLEXIVO', 'APROBADO');
+
+ ------------------------------------------------------------------------------------------------------
+-- El proceso de titulación tiene etapas: ANTEPROYECTO, DESARROLLO, REVISIÓN, CORRECCIONES, DEFENSA, APROBADO/RECHAZADO (violación de 2.7.64)
+INSERT INTO SISTEMA_UNIVERSITARIO.PROCESO_TITULACION (ID_TIT, ID_ESTUDIANTE, TIPO_TITULACION, ETAPA_ACTUAL)
+VALUES (41006, 10303, 'TESIS', 'DEFENSA');
+
+------------------------------------------------------------------------------------------------------
+-- El tutor debe ser docente TITULAR o AGREGADO de la carrera (violación de 2.7.65)
+INSERT INTO SISTEMA_UNIVERSITARIO.TESIS (ID_TESIS, ID_TITULACION, ID_ESTUDIANTE, TITULO, TUTOR_DOCENTE_ID)
+VALUES (42002, 41007, 10304, 'Tesis Z', 9005);
+
+------------------------------------------------------------------------------------------------------
+-- La defensa es ante un TRIBUNAL de 3 docentes (presidente, vocal 1, vocal 2) (violación de 2.7.66)
+INSERT INTO SISTEMA_UNIVERSITARIO.TRIBUNAL_DEFENSA (ID_TRIB, ID_TESIS, PRESIDENTE_ID, VOCAL1_ID, VOCAL2_ID)
+VALUES (45001, 42003, 9001, 9002, NULL);
+
+------------------------------------------------------------------------------------------------------
+-- Calificación de titulación: EXCELENTE (9.5-10), MUY_BUENO (9.0-9.4), BUENO (8.0-8.9), APROBADO (7.0-7.9) (violación de 2.7.67)
+INSERT INTO SISTEMA_UNIVERSITARIO.TITULACION_RESULTADO (ID_RES, ID_TITULACION, CALIFICACION_NUMERICA, CALIFICACION_LETRA)
+VALUES (46001, 41008, 6.5, 'APROBADO');
+
+------------------------------------------------------------------------------------------------------
+-- Reglas sobre proyectos de investigacion
+------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
+-- Cada proyecto de investigación tiene: código, título, línea de investigación, fecha inicio, fecha fin prevista, estado (violación de 2.8.68)
+INSERT INTO SISTEMA_UNIVERSITARIO.PROYECTO (ID_PROYECTO, CODIGO_PROYECTO, TITULO, LINEA_INVESTIGACION, FECHA_INICIO, FECHA_FIN_PREVISTA, ESTADO)
+VALUES (80001, 'P-2025-001', NULL, NULL, TO_DATE('2025-01-01','YYYY-MM-DD'), TO_DATE('2026-12-31','YYYY-MM-DD'), 'PROPUESTO');
+
+------------------------------------------------------------------------------------------------------
+-- Estados: PROPUESTO, APROBADO, EN_EJECUCIÓN, FINALIZADO, CANCELADO (violación de 2.8.69)
+INSERT INTO SISTEMA_UNIVERSITARIO.PROYECTO (ID_PROYECTO, CODIGO_PROYECTO, TITULO, LINEA_INVESTIGACION, FECHA_INICIO, FECHA_FIN_PREVISTA, ESTADO)
+VALUES (80002, 'P-2025-002', 'Estudio Z', 'IA', TO_DATE('2025-02-01','YYYY-MM-DD'), TO_DATE('2025-08-01','YYYY-MM-DD'), 'EN_REVISION_PENDIENTE');
+
+------------------------------------------------------------------------------------------------------
+-- Un proyecto tiene un DIRECTOR (docente) y puede tener COLABORADORES (docentes, estudiantes, externos) (violación de 2.8.70)
+INSERT INTO SISTEMA_UNIVERSITARIO.PROYECTO (ID_PROYECTO, CODIGO_PROYECTO, TITULO, LINEA_INVESTIGACION, FECHA_INICIO, FECHA_FIN_PREVISTA, ESTADO, DIRECTOR_DOCENTE_ID)
+VALUES (80003, 'P-2025-003', 'Proyecto Sin Director', 'Robótica', TO_DATE('2025-03-01','YYYY-MM-DD'), TO_DATE('2026-03-01','YYYY-MM-DD'), 'APROBADO', NULL);
+
+------------------------------------------------------------------------------------------------------
+-- Las líneas de investigación están asociadas a carreras/facultades (violación de 2.8.71)
+INSERT INTO SISTEMA_UNIVERSITARIO.LINEA_INVESTIGACION (ID_LINEA, NOMBRE_LINEA, ID_CARRERA, ID_FACULTAD)
+VALUES (90001, 'Linea Libre', NULL, NULL);
+
+------------------------------------------------------------------------------------------------------
+-- Cada proyecto tiene presupuesto asignado con categorías: PERSONAL, EQUIPOS, MATERIALES, VIAJES, SERVICIOS (violación de 2.8.72)
+INSERT INTO SISTEMA_UNIVERSITARIO.PRESUPUESTO_PROYECTO (ID_PRES, ID_PROYECTO, CATEGORIA, MONTO_PLANIFICADO, MONTO_EJECUTADO)
+VALUES (100001, 80001, 'SUBCONTRATOS_ILIMITADOS', 50000, 0);
+
+------------------------------------------------------------------------------------------------------
+-- Se registra la ejecución presupuestaria: categoría, monto planificado, monto ejecutado, porcentaje ejecución (violación de 2.8.73)
+INSERT INTO SISTEMA_UNIVERSITARIO.EJECUCION_PRESUPUESTARIA (ID_EJEC, ID_PROYECTO, CATEGORIA, MONTO_PLAN, MONTO_EJEC, PORC_EJEC)
+VALUES (110001, 80002, 'EQUIPOS', 20000, 25000, 125);
+
+------------------------------------------------------------------------------------------------------
+-- Un proyecto puede generar PUBLICACIONES: artículos, libros, capítulos de libro (violación de 2.8.74)
+INSERT INTO SISTEMA_UNIVERSITARIO.PUBLICACION (ID_PUB, ID_PROYECTO, TIPO_PUBLICACION, TITULO, REVISTA, DOI, INDEXACION)
+VALUES (120001, 80003, 'ARTICULO', 'Resultados Dos', NULL, NULL, 'SCOPUS');
+
+------------------------------------------------------------------------------------------------------
+-- Cada publicación tiene: título, autores (orden), revista/editorial, DOI, indexación (Scopus, WoS, Latindex) (violación de 2.8.75)
+INSERT INTO SISTEMA_UNIVERSITARIO.AUTOR_PUBLICACION (ID_AUT, ID_PUB, AUTOR_ID, ORDEN_AUTOR)
+VALUES (130001, 120001, 9001, 1);
+INSERT INTO SISTEMA_UNIVERSITARIO.AUTOR_PUBLICACION (ID_AUT, ID_PUB, AUTOR_ID, ORDEN_AUTOR)
+VALUES (130002, 120001, 9002, 1); 
+
+------------------------------------------------------------------------------------------------------
+-- Los docentes con proyectos activos tienen reducción de 20% en carga de docencia (violación de 2.8.76)
+INSERT INTO SISTEMA_UNIVERSITARIO.PROYECTO (ID_PROYECTO, CODIGO_PROYECTO, TITULO, LINEA_INVESTIGACION, FECHA_INICIO, FECHA_FIN_PREVISTA, ESTADO, DIRECTOR_DOCENTE_ID)
+VALUES (80004, 'P-2025-004', 'Investigacion Activa', 'Sistemas', TO_DATE('2024-09-01','YYYY-MM-DD'), TO_DATE('2026-09-01','YYYY-MM-DD'), 'EN_EJECUCIÓN', 9008);
+  -- Aseguramos que docente 9008 existe (puede existir en datos previos); registramos que no tiene reducción aplicada
+UPDATE SISTEMA_UNIVERSITARIO.DOCENTE SET REDUCCION_POR_PROYECTO = 0 WHERE ID_DOCENTE = 9008;
+
+------------------------------------------------------------------------------------------------------
+-- Reglas sobre infraestructura
+------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------
+--	La universidad tiene AULAS identificadas por: edificio, piso, número (violación de 2.9.77)
+INSERT INTO SISTEMA_UNIVERSITARIO.AULA (ID_AULA, EDIFICIO, PISO, NUMERO_AULA, CAPACIDAD, TIPO_AULA)
+VALUES (200001, NULL, NULL, '101', 30, 'AULA_NORMAL');
+
+------------------------------------------------------------------------------------------------------
+--	Cada aula tiene: capacidad, tipo (AULA_NORMAL, LABORATORIO_COMPUTACIÓN, LABORATORIO_FÍSICA, AUDITORIO) (violación de 2.9.78)
+INSERT INTO SISTEMA_UNIVERSITARIO.AULA (ID_AULA, EDIFICIO, PISO, NUMERO_AULA, CAPACIDAD, TIPO_AULA)
+VALUES (200002, 'Edificio B', 2, '201', -5, 'SALA_MULTIUSO_X');
+
+------------------------------------------------------------------------------------------------------
+--	Aulas tienen equipamiento: proyector, computador, pizarra digital, sistema de audio (sí/no) (violación de 2.9.79)
+INSERT INTO SISTEMA_UNIVERSITARIO.EQUIPAMIENTO_AULA (ID_EQ, ID_AULA, PROYECTOR, COMPUTADOR, PIZARRA_DIGITAL, AUDIO)
+VALUES (210001, 200002, 'PRESENTE_PARTE', 'SI', 'NO', 'PARCIAL'); 
+
+------------------------------------------------------------------------------------------------------
+--	Los LABORATORIOS tienen inventario de EQUIPOS: nombre, marca, modelo, serie, estado, fecha de adquisición (violación de 2.9.80)
+INSERT INTO SISTEMA_UNIVERSITARIO.INVENTARIO_EQUIPO (ID_EQUIPO, ID_AULA, NOMBRE_EQUIPO, MARCA, MODELO, SERIE, ESTADO_EQUIPO, FECHA_ADQUISICION)
+VALUES (220001, 300, 'Osciloscopio', 'MarcaX', 'M-1', 'SN123', 'DESCONOCIDO', TO_DATE('2030-01-01','YYYY-MM-DD'));
+
+------------------------------------------------------------------------------------------------------
+--	Estados de equipos: OPERATIVO, MANTENIMIENTO, DAÑADO, BAJA (violación de 2.9.81)
+INSERT INTO SISTEMA_UNIVERSITARIO.INVENTARIO_EQUIPO (ID_EQUIPO, ID_AULA, NOMBRE_EQUIPO, MARCA, MODELO, SERIE, ESTADO_EQUIPO, FECHA_ADQUISICION)
+VALUES (220002, 300, 'PC Laboratorio', 'BrandY', 'B-2', 'SN999', 'CONDICIONAL', TO_DATE('2019-05-05','YYYY-MM-DD'));
+
+------------------------------------------------------------------------------------------------------
+--	La BIBLIOTECA tiene catálogo de LIBROS: físicos y digitales (violación de 2.9.82)
+INSERT INTO SISTEMA_UNIVERSITARIO.LIBRO (ID_LIBRO, ISBN, TITULO, AUTOR, EDITORIAL, ANIO, CATEGORIA, NUM_EJEMPLARES)
+VALUES (230001, '978-0-00-000000-0', 'Libro X', 'Autor A', 'Ed', 2020, 'Ciencia', NULL);
+
+------------------------------------------------------------------------------------------------------
+--	Cada libro: ISBN, título, autor, editorial, año, categoría, número de ejemplares (físicos) (violación de 2.9.83)
+INSERT INTO SISTEMA_UNIVERSITARIO.LIBRO (ID_LIBRO, ISBN, TITULO, AUTOR, EDITORIAL, ANIO, CATEGORIA, NUM_EJEMPLARES)
+VALUES (230002, 'INVALID_ISBN', 'Libro Y', 'Autor B', 'EdB', 3025, 'Historia', 3);
+
+------------------------------------------------------------------------------------------------------
+--	Los préstamos de libros físicos: estudiante, libro, fecha préstamo, fecha devolución prevista, fecha devolución real (violación de 2.9.84)
+INSERT INTO SISTEMA_UNIVERSITARIO.PRESTAMO (ID_PRESTAMO, ID_LIBRO, ID_ESTUDIANTE, FECHA_PRESTAMO, FECHA_DEVOL_PREVISTA, FECHA_DEVOL_REAL)
+VALUES (240001, 230002, 10011, TO_DATE('2025-10-20','YYYY-MM-DD'), TO_DATE('2025-10-10','YYYY-MM-DD'), NULL);
+
+------------------------------------------------------------------------------------------------------
+--	Plazo de préstamo: 15 días, renovable una vez si no hay reservas (violación de 2.9.85)
+INSERT INTO SISTEMA_UNIVERSITARIO.RENOVACION (ID_REN, ID_PRESTAMO, NUM_RENOVACIONES, HAY_RESERVA)
+VALUES (250001, 240001, 3, 'N');
+
+------------------------------------------------------------------------------------------------------
+--	Mora por día de retraso: $0.50, máximo $10 por libro (violación de 2.9.86)
+UPDATE SISTEMA_UNIVERSITARIO.PRESTAMO SET FECHA_DEVOL_REAL = TO_DATE('2026-01-01','YYYY-MM-DD') WHERE ID_PRESTAMO = 240001;
+
+------------------------------------------------------------------------------------------------------
+--	Los ESPACIOS (aulas, auditorios, laboratorios) pueden RESERVARSE para eventos (violación de 2.9.87)
+INSERT INTO SISTEMA_UNIVERSITARIO.RESERVA (ID_RESERVA, ID_ESPACIO, ID_SOLICITANTE, FECHA, HORA_INICIO, HORA_FIN, MOTIVO, ESTADO)
+VALUES (260001, 200001, NULL, TO_DATE('2025-12-01','YYYY-MM-DD'), TO_DATE('09:00','HH24:MI'), TO_DATE('12:00','HH24:MI'), NULL, 'SOLICITADA');
+
+------------------------------------------------------------------------------------------------------
+--	La reserva requiere: solicitante (docente/estudiante), espacio, fecha, hora inicio, hora fin, motivo, estado (SOLICITADA, APROBADA, RECHAZADA) (violación de 2.9.88)
+INSERT INTO SISTEMA_UNIVERSITARIO.RESERVA (ID_RESERVA, ID_ESPACIO, ID_SOLICITANTE, FECHA, HORA_INICIO, HORA_FIN, MOTIVO, ESTADO)
+VALUES (260002, 200002, 10011, TO_DATE('2025-12-02','YYYY-MM-DD'), TO_DATE('14:00','HH24:MI'), TO_DATE('13:00','HH24:MI'), 'Evento Z', 'PENDIENTE_VERIFICAR');
+
+/*
+FIN DEL SCRIPT
+*/
